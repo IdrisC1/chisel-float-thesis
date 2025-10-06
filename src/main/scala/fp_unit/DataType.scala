@@ -35,6 +35,14 @@ object FP32 extends FpType {
   val fpnewFormatEnum = "fpnew_pkg_snax::FP32"
 
 }
+
+object FP64 extends FpType {
+  val expWidth        = 11
+  val sigWidth        = 52
+  val fpnewFormatEnum = "fpnew_pkg_snax::FP64"
+
+}
+
 object BF16 extends FpType {
   val expWidth        = 8
   val sigWidth        = 7

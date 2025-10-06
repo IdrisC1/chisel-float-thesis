@@ -71,6 +71,13 @@ class FpMulFpTest extends AnyFlatSpec with Matchers with ChiselScalatestTester w
     specialCases.zipWithIndex.foreach { case ((a, b), index) => testSingle(dut, index + 1, a, b) }
   }
 
+  it should "perform FP64 x FP64 = FP64 correctly" in {
+      test(
+        new FpMulFp(typeA = FP64, typeB = FP64, typeC = FP64)
+      ).withAnnotations(Seq(VerilatorBackendAnnotation, WriteVcdAnnotation)) { dut => testAll(dut) }
+    }
+
+
   it should "perform FP16 x FP16 = FP32 correctly" in {
     test(
       new FpMulFp(typeA = FP16, typeB = FP16, typeC = FP32)

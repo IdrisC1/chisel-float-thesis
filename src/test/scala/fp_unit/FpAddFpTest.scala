@@ -77,6 +77,16 @@ class FpAddFpTest extends AnyFlatSpec with Matchers with ChiselScalatestTester w
     specialCases.zipWithIndex.foreach { case ((a, b), index) => testSingle(dut, index + 1, a, b) }
   }
 
+  it should "perform FP64 + FP64 -> FP64 correctly" in {
+    test(
+      new FpAddFp(typeA = FP64, typeB = FP64, typeC = FP64)
+    ).withAnnotations(Seq(VerilatorBackendAnnotation, WriteVcdAnnotation)) { dut => 
+      dut.clock.setTimeout(10000) // Increase timeout to 10000 cycles
+      test_all_fp_add_fp(dut) 
+    }
+  }
+
+
   it should "perform FP32 + FP32 -> FP32 correctly" in {
     test(
       new FpAddFp(typeA = FP32, typeB = FP32, typeC = FP32)

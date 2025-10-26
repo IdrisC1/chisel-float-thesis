@@ -12,7 +12,7 @@ import org.scalatest.matchers.should.Matchers
 class FpUtilsTest extends AnyFlatSpec with Matchers with FpUtils {
   behavior of "FpUtils floatToUInt and uintToFloat conversions"
 
-  val fpTypes: Seq[FpType] = Seq(FP16, FP32, BF16)
+  val fpTypes: Seq[FpType] = Seq(FP16, FP32, BF16, FP64)
   val numTests = 1000
 
   // Special values

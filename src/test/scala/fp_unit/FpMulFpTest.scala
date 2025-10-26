@@ -74,7 +74,9 @@ class FpMulFpTest extends AnyFlatSpec with Matchers with ChiselScalatestTester w
   it should "perform FP64 x FP64 = FP64 correctly" in {
       test(
         new FpMulFp(typeA = FP64, typeB = FP64, typeC = FP64)
-      ).withAnnotations(Seq(VerilatorBackendAnnotation, WriteVcdAnnotation)) { dut => testAll(dut) }
+      ).withAnnotations(Seq(VerilatorBackendAnnotation, WriteVcdAnnotation)) { dut =>
+        dut.clock.setTimeout(5)
+        testAll(dut) }
     }
 
 
@@ -86,7 +88,9 @@ class FpMulFpTest extends AnyFlatSpec with Matchers with ChiselScalatestTester w
 
   it should "perform FP16 x FP16 = FP16 correctly" in {
     test(new FpMulFp(typeA = FP16, typeB = FP16, typeC = FP16))
-      .withAnnotations(Seq(VerilatorBackendAnnotation, WriteVcdAnnotation)) { dut => testAll(dut) }
+      .withAnnotations(Seq(VerilatorBackendAnnotation, WriteVcdAnnotation)) { dut => 
+        dut.clock.setTimeout(5)
+        testAll(dut) }
   }
 
   it should "perform BF16 x BF16 = FP32 correctly" in {

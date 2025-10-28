@@ -130,6 +130,17 @@ package fpnew_pkg_snax;
     CPKCD      // CONV operation group
   } operation_e;
 
+  // -------------
+  // DIVSQRT UNIT
+  // -------------
+  // I think we only need PULP
+  typedef enum logic[1:0] {
+    PULP,    // "PULP" instantiates the PULP DivSqrt unit supports FP64, FP32, FP16, FP16ALT, FP8 and SIMD operations
+    TH32,    // "TH32" instantiates the E906 DivSqrt unit supports only FP32 (no SIMD support)
+    THMULTI  // "THMULTI" instantiates the C910 DivSqrt unit supports FP64, FP32, FP16, FP16ALT and SIMD operations
+  } divsqrt_unit_t;
+
+
   // -------------------
   // RISC-V FP-SPECIFIC
   // -------------------
@@ -326,7 +337,7 @@ package fpnew_pkg_snax;
     return res;
   endfunction
 
-  // Returns the number of expoent bits for a format
+  // Returns the number of exponent bits for a format
   function automatic int unsigned exp_bits(fp_format_e fmt);
     return FP_ENCODINGS[fmt].exp_bits;
   endfunction
@@ -399,6 +410,14 @@ package fpnew_pkg_snax;
     return vec ? width / min_fp_width(cfg) : 1;  // if no vectors, only one lane
   endfunction
 
+  // Returns the maximum number of lanes in the FPU according to width, format config and vectors
+  function automatic int unsigned num_divsqrt_lanes(int unsigned width, fmt_logic_t cfg, logic vec, divsqrt_unit_t DivSqrtSel);
+    automatic fmt_logic_t cfg_tmp;
+    cfg_tmp = (DivSqrtSel == THMULTI) ? cfg & 5'b11101 : cfg;
+    return vec ? width / min_fp_width(cfg_tmp) : 1; // if no vectors, only one lane
+  endfunction
+
+
   // Returns a mask of active FP formats that are present in lane lane_no of a multiformat slice
   function automatic fmt_logic_t get_lane_formats(int unsigned width, fmt_logic_t cfg, int unsigned lane_no);
     automatic fmt_logic_t res;
@@ -457,19 +476,20 @@ package fpnew_pkg_snax;
   endfunction
 
 
-
+  // Return whether any active format is set as MERGED
   function automatic logic any_enabled_multi(fmt_unit_types_t types);
     for (int unsigned i = 0; i < NUM_FP_FORMATS; i++) if (types[i] == MERGED) return 1'b1;
     return 1'b0;
   endfunction
 
+  // Return whether the given format is the first active one set as MERGED
   function automatic logic is_first_enabled_multi(fp_format_e fmt, fmt_unit_types_t types);
     for (int unsigned i = 0; i < NUM_FP_FORMATS; i++) begin
       if (types[i] == MERGED) return (fp_format_e'(i) == fmt);
     end
     return 1'b0;
   endfunction
-
+  // Returns the largest number of regs that is active and is set as MERGED
   function automatic fp_format_e get_first_enabled_multi(fmt_unit_types_t types);
     for (int unsigned i = 0; i < NUM_FP_FORMATS; i++) if (types[i] == MERGED) return fp_format_e'(i);
     return fp_format_e'(0);

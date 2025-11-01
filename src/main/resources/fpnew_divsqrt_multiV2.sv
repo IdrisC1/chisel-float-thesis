@@ -62,7 +62,7 @@ module fpnew_divsqrt_multiV2 #(
   input  logic                        flush_i,
   // Output signals
   output logic [WIDTH-1:0]            result_o,
-  output fpnew_pkg_snax::status_t          status_o, //Invalid, Divide by zero, Overflow, Underflow, Inexact
+  output fpnew_pkg_snax::status_t     status_o, //Invalid, Divide by zero, Overflow, Underflow, Inexact
   output logic                        extension_bit_o,
   output TagType                      tag_o,
   output logic                        mask_o, // consumers should check out_valid_o and mask_o together to decide whether to consume/write the result (e.g., for SIMD/vector masked operations).

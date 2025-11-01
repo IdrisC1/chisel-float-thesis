@@ -7,7 +7,7 @@ import chisel3.experimental.RawParam
 import chisel3.util._
 
 /** BlackBox wrapper for fpnew_divsqrt_multiV2.sv */
-class DivSqrtBlackBox(
+class FpDivFpVectorProcessiongBlackBox(
     topmodule: String,
     typeX: FpType,
     // val FP_FORMAT: Int = 2,      // Default FP16, matches fpnew_pkg_snax::fp_format_e
@@ -86,7 +86,7 @@ class DivSqrtBlackBox(
 }
 
 /** High-level wrapper for DivSqrtBlackBox that uses DataType formats */
-class DivSqrtFp(
+class FpDivFpVectorProcessiong(
     val typeX: FpType,    // Input A format
     val NUM_PIPE_REGS: Int = 0,
     val TAG_WIDTH: Int = 1,
@@ -122,7 +122,7 @@ class DivSqrtFp(
     // }
 
     // Instantiate BlackBox
-    val divSqrt = Module(new DivSqrtBlackBox(
+    val FpdivFpvector = Module(new FpDivFpVectorProcessiongBlackBox(
         modulename,
         typeX,
         NUM_PIPE_REGS,
@@ -130,33 +130,33 @@ class DivSqrtFp(
     ))
 
     // Connect clock and reset
-    divSqrt.io.clk_i := clock
-    divSqrt.io.rst_ni := !reset.asBool
+    FpdivFpvector.io.clk_i := clock
+    FpdivFpvector.io.rst_ni := !reset.asBool
 
     // Connect all required inputs including tag
-    divSqrt.io.tag_i := io.tag_i
+    FpdivFpvector.io.tag_i := io.tag_i
     // divSqrt.io.operands_i(0) := io.in_a
     // divSqrt.io.operands_i(1) := io.in_b
-    divSqrt.io.operands_i := Cat( io.in_b, io.in_a)
+    FpdivFpvector.io.operands_i := Cat( io.in_b, io.in_a)
     // divSqrt.io.rnd_mode_i := io.rnd_mode
     
     // Connect control signals
-    divSqrt.io.in_valid_i := io.in_valid
-    divSqrt.io.out_ready_i := io.out_ready
-    divSqrt.io.mask_i := false.B
-    divSqrt.io.vectorial_op_i := false.B
-    divSqrt.io.flush_i := false.B
-    divSqrt.io.simd_synch_done_i := false.B
-    divSqrt.io.simd_synch_rdy_i := false.B
-    divSqrt.io.reg_ena_i := 1.U
+    FpdivFpvector.io.in_valid_i := io.in_valid
+    FpdivFpvector.io.out_ready_i := io.out_ready
+    FpdivFpvector.io.mask_i := false.B
+    FpdivFpvector.io.vectorial_op_i := false.B
+    FpdivFpvector.io.flush_i := false.B
+    FpdivFpvector.io.simd_synch_done_i := false.B
+    FpdivFpvector.io.simd_synch_rdy_i := false.B
+    FpdivFpvector.io.reg_ena_i := 1.U
     
     // All formats considered boxed
     // divSqrt.io.is_boxed_i.foreach(_.foreach(_ := true.B))
     
     // Connect all outputs including tag
-    io.result := divSqrt.io.result_o
-    io.out_valid := divSqrt.io.out_valid_o
-    io.busy := divSqrt.io.busy_o
-    io.tag_o := divSqrt.io.tag_o
+    io.result := FpdivFpvector.io.result_o
+    io.out_valid := FpdivFpvector.io.out_valid_o
+    io.busy := FpdivFpvector.io.busy_o
+    io.tag_o := FpdivFpvector.io.tag_o
 }
 

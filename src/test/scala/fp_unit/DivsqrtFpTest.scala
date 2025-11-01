@@ -7,7 +7,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class DivSqrtFpTest extends AnyFlatSpec with Matchers with ChiselScalatestTester with FpUtils {
-  behavior of "DivSqrtFp"
+  behavior of "FpDivFp"
 
   val maxCyclesPerTest = 10000
   val testNum = 200
@@ -20,7 +20,7 @@ class DivSqrtFpTest extends AnyFlatSpec with Matchers with ChiselScalatestTester
     }
   }
 
-  def testSingle(dut: DivSqrtFp, test_id: Int, a: Float, b: Float) = {
+  def testSingle(dut: FpDivFp, test_id: Int, a: Float, b: Float) = {
     val expected = a / b
     println(expected)
     val aBits = floatToUInt(dut.typeX.asInstanceOf[FpType], a)
@@ -32,29 +32,39 @@ class DivSqrtFpTest extends AnyFlatSpec with Matchers with ChiselScalatestTester
     // dut.io.operands_0(0).poke(aBits.U)
     // dut.io.operands_i(1).poke(bBits.U)
     dut.io.rnd_mode.poke(0.U)
-    dut.io.tag_i.poke(0.U)  // Add tag value
-    dut.io.in_valid.poke(true.B)
-    dut.io.out_ready.poke(true.B)
-
+    dut.io.div_valid.poke(true.B)
+    
+    // dut.io.out_ready.poke(true.B)
     dut.clock.step(1)
-    dut.io.in_valid.poke(false.B)
+    dut.io.div_valid.poke(false.B)
     
     var cycles = 0
-    while (!dut.io.out_valid.peek().litToBoolean && cycles < maxCyclesPerTest) {
+    while (!dut.io.out_done.peek().litToBoolean && cycles < maxCyclesPerTest) {
       dut.clock.step(1)
       cycles += 1
     }
 
     withClue(s"Test #$test_id a=$a b=$b took $cycles cycles: ") {
-      dut.io.out_valid.peek().litToBoolean shouldBe true
+      dut.io.out_done.peek().litToBoolean shouldBe true
       val got = dut.io.result.peek().litValue
+
+        println(f"  a = 0x${aBits.toLong}%08X (${aBits.toLong.toBinaryString})")
+      println(f"  b = 0x${bBits.toLong}%08X (${bBits.toLong.toBinaryString})")
+      println(f"  expected = 0x${expectedBits.toLong}%08X (${expectedBits.toLong.toBinaryString}), ${expected} ")
+      println(f"  got      = 0x${got}%08X (${got.toLong.toBinaryString}), ${java.lang.Float.intBitsToFloat(got.toInt)}")
+   
+
       got shouldBe expectedBits
-    }
+       // Print results in readable format
+        }
+    
+
+   
 
     dut.clock.step(1)
   }
 
-  def testSpecialCases(dut: DivSqrtFp) = {
+  def testSpecialCases(dut: FpDivFp) = {
     val specialCases = Seq(
       (1.0f, 2.0f),           // Basic division
       (0.0f, 1.0f),           // Zero numerator
@@ -69,14 +79,14 @@ class DivSqrtFpTest extends AnyFlatSpec with Matchers with ChiselScalatestTester
   }
 
   it should "perform FP32 DIV correctly" in {
-    runDivTests(new DivSqrtFp(typeX = FP32, NUM_PIPE_REGS = 0, TAG_WIDTH = 1), testNum, is64 = false) { dut =>
+    runDivTests(new FpDivFp(typeX = FP32), testNum, is64 = false) { dut =>
     //   val rng = new scala.util.Random(42)
       for (i <- 0 until testNum) {
-        // var a = genRandomValue(FP32)
-        // var b = genRandomValue(FP32)
-        // if (b == 0.0f) b = 1.0f  // Avoid division by zero
-        var a = 10.toFloat
-        var b = 5.toFloat
+        var a = genRandomValue(FP32)
+        var b = genRandomValue(FP32)
+        if (b == 0.0f) b = 1.0f  // Avoid division by zero
+        // var a = 10.toFloat
+        // var b = 5.toFloat
         testSingle(dut, i + 1, a, b)
       }
     }

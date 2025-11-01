@@ -352,6 +352,11 @@ package fpnew_pkg_snax;
     return unsigned'(2 ** (FP_ENCODINGS[fmt].exp_bits - 1) - 1);  // symmetrical bias
   endfunction
 
+  // Returns the half of the bias value for a given format (as per IEEE 754-2008)
+  function automatic int unsigned half_bias(fp_format_e fmt);
+    return unsigned'((bias(fmt)+1)/2-1);  // symmetrical bias
+  endfunction
+
   function automatic fp_encoding_t super_format(fmt_logic_t cfg);
     automatic fp_encoding_t res;
     res = '0;

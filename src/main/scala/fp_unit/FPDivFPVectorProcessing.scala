@@ -159,3 +159,4 @@ class DivSqrtFp(
     io.busy := divSqrt.io.busy_o
     io.tag_o := divSqrt.io.tag_o
 }
+

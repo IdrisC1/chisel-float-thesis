@@ -32,16 +32,16 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-import defs_div_sqrt_mvp::*;
+// import defs_div_sqrt_mvp::*;
 
-module preprocess_mvp
-  #(
-    parameter fpnew_pkg_snax::fp_format_e FpFormat = fpnew_pkg_snax::FP32
-
-    localparam int unsigned EXP_BITS = fpnew_pkg_snax::exp_bits(FpFormat);
-    localparam int unsigned MAN_BITS = fpnew_pkg_snax::man_bits(FpFormat);
-    localparam int unsigned WIDTH = fpnew_pkg_snax::width(FpFormat);
+module preprocess_mvp # (
+    parameter fpnew_pkg_snax::fp_format_e FpFormat = fpnew_pkg_snax::FP32,
+    parameter int unsigned RM_SI = 3'h0, // Rounding Mode 
     // localparam int unsigned BIAS = fpnew_pkg_snax::bias(FpFormat);
+
+    parameter int unsigned EXP_BITS = fpnew_pkg_snax::exp_bits(FpFormat),
+    parameter int unsigned MAN_BITS = fpnew_pkg_snax::man_bits(FpFormat),
+    parameter int unsigned WIDTH = fpnew_pkg_snax::fp_width(FpFormat)
   )
   (
    input logic                   Clk_CI,
@@ -54,7 +54,7 @@ module preprocess_mvp
   //  input logic [C_OP_FP64-1:0]   Operand_b_DI,
    input logic [WIDTH-1:0] Operand_a_DI,
    input logic [WIDTH-1:0] Operand_b_DI,
-   input logic [C_RM-1:0]        RM_SI,    //Rounding Mode
+  //  input logic [C_RM-1:0]        RM_SI,    //Rounding Mode
   //  input logic [C_FS-1:0]        Format_sel_SI,  // Format Selection
 
    // to control
@@ -81,6 +81,11 @@ module preprocess_mvp
    output logic                  Special_case_SBO,
    output logic                  Special_case_dly_SBO
    );
+
+
+  // localparam int unsigned EXP_BITS = fpnew_pkg_snax::exp_bits(FpFormat);
+  // localparam int unsigned MAN_BITS = fpnew_pkg_snax::man_bits(FpFormat);
+  // localparam int unsigned WIDTH = fpnew_pkg_snax::width(FpFormat);
 
    //Hidden Bits
    logic                         Hb_a_D;
@@ -165,7 +170,7 @@ module preprocess_mvp
    assign Hb_a_D = | Exp_a_D; // hidden bit
    assign Hb_b_D = | Exp_b_D; // hidden bit
 
-   assign Start_S= Div_start_SI // | Sqrt_start_SI;
+   assign Start_S = Div_start_SI; // | Sqrt_start_SI;
 
 
 
@@ -365,7 +370,8 @@ module preprocess_mvp
    logic [5:0]                  Mant_leadingOne_a, Mant_leadingOne_b;
    logic                        Mant_zero_S_a,Mant_zero_S_b;
 
-  lzc #(
+  // lzc #(
+  lzc_snax #(
     // .WIDTH ( C_MANT_FP64+1 ),
     .WIDTH ( MAN_BITS+1 ),
     .MODE  ( 1             )
@@ -395,6 +401,7 @@ module preprocess_mvp
 
   //  logic [C_EXP_FP64:0]            Exp_a_norm_DN,Exp_a_norm_DP;
   logic [EXP_BITS:0]            Exp_a_norm_DN,Exp_a_norm_DP;
+
    assign  Exp_a_norm_DN = ((Start_S&&Ready_SI))?(Exp_a_D-Mant_leadingOne_a+(|Mant_leadingOne_a)):Exp_a_norm_DP;  //Covering the process of denormal numbers
 
    always_ff @(posedge Clk_CI, negedge Rst_RBI)
@@ -409,7 +416,8 @@ module preprocess_mvp
           end
      end
 
-  lzc #(
+  // lzc #(
+  lzc_snax #(
     // .WIDTH ( C_MANT_FP64+1 ),
     .WIDTH (MAN_BITS+1 ),
     .MODE  ( 1             )

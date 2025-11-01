@@ -16,27 +16,35 @@
 // `include "src/main/resources/common_block/registers.sv"
 
 
-module fpnew_divsqrt_multi #(
-  parameter fpnew_pkg_snax::fmt_logic_t   FpFmtConfig  = '1,
+module fpnew_divsqrt_multiV2 #(
+  // parameter fpnew_pkg_snax::fmt_logic_t   FpFmtConfig  = '1,
   // FPU configuration
   parameter int unsigned             NumPipeRegs = 0,
   parameter fpnew_pkg_snax::pipe_config_t PipeConfig  = fpnew_pkg_snax::AFTER,
   parameter type                     TagType     = logic,
   parameter type                     AuxType     = logic,
+  parameter logic [C_PC-1:0] PRECISION_CTRL = 'h00,// Full precision as default
   // Datatype
-  parameter fpnew_pkg_snax_snax::fp_format_e FpFormat   = fpnew_pkg_snax_snax::fp_format_e'(2),  //FP16 
+  parameter fpnew_pkg_snax::fp_format_e FpFormat   = fpnew_pkg_snax::fp_format_e'(2),  //FP16 
 
   // Do not change
-  localparam int unsigned WIDTH       = fpnew_pkg_snax::max_fp_width(FpFmtConfig),
-  localparam int unsigned NUM_FORMATS = fpnew_pkg_snax::NUM_FP_FORMATS,
-  localparam int unsigned ExtRegEnaWidth = NumPipeRegs == 0 ? 1 : NumPipeRegs
+  // parameter int unsigned WIDTH       = fpnew_pkg::max_fp_width(FpFmtConfig),
+  
+  parameter int unsigned WIDTH       = fpnew_pkg_snax::fp_width(FpFormat),
+  parameter int unsigned NUM_FORMATS = fpnew_pkg_snax::NUM_FP_FORMATS,
+  parameter int unsigned ExtRegEnaWidth = NumPipeRegs == 0 ? 1 : NumPipeRegs,
+
+  // Round mode
+  // parameter fpnew_pkg_snax::roundmode_e RM_SI = fpnew_pkg_snax::RNE
+  parameter logic [C_RM-1:0] RM_SI = 3'h0
+
 ) (
   input  logic                        clk_i,
   input  logic                        rst_ni,
   // Input signals
   input  logic [1:0][WIDTH-1:0]       operands_i, // 2 operands
-  input  logic [NUM_FORMATS-1:0][1:0] is_boxed_i, // 2 operands
-  input  fpnew_pkg_snax::roundmode_e  rnd_mode_i,
+  // input  logic [NUM_FORMATS-1:0][1:0] is_boxed_i, // 2 operands
+  // input  fpnew_pkg_snax::roundmode_e  rnd_mode_i,
   // input  fpnew_pkg_snax::operation_e  op_i, // Div or sqrt TODO: remove sqrt part -> always div 
   // input  fpnew_pkg_snax::fp_format_e       dst_fmt_i, // Destianation dataype format
   input  TagType                      tag_i,  
@@ -71,6 +79,10 @@ module fpnew_divsqrt_multi #(
   output logic                        early_out_valid_o
 );
 
+  // localparam int unsigned WIDTH       = fpnew_pkg_snax::max_fp_width(FpFmtConfig),
+  // localparam int unsigned NUM_FORMATS = fpnew_pkg_snax::NUM_FP_FORMATS,
+  // localparam int unsigned ExtRegEnaWidth = NumPipeRegs == 0 ? 1 : NumPipeRegs
+
   // ----------
   // Constants
   // ----------
@@ -98,7 +110,7 @@ module fpnew_divsqrt_multi #(
 
   // Input pipeline signals, index i holds signal after i register stages
   logic                  [0:NUM_INP_REGS][1:0][WIDTH-1:0]       inp_pipe_operands_q;
-  fpnew_pkg_snax::roundmode_e [0:NUM_INP_REGS]                       inp_pipe_rnd_mode_q;
+  // fpnew_pkg_snax::roundmode_e [0:NUM_INP_REGS]                       inp_pipe_rnd_mode_q;
   // fpnew_pkg_snax::operation_e [0:NUM_INP_REGS]                       inp_pipe_op_q;
   // fpnew_pkg_snax::fp_format_e [0:NUM_INP_REGS]                       inp_pipe_dst_fmt_q;
   TagType                [0:NUM_INP_REGS]                       inp_pipe_tag_q;
@@ -111,7 +123,7 @@ module fpnew_divsqrt_multi #(
 
   // Input stage: First element of pipeline is taken from inputs
   assign inp_pipe_operands_q[0] = operands_i;
-  assign inp_pipe_rnd_mode_q[0] = rnd_mode_i;
+  // assign inp_pipe_rnd_mode_q[0] = rnd_mode_i;
   // assign inp_pipe_op_q[0]       = op_i;
   // assign inp_pipe_dst_fmt_q[0]  = dst_fmt_i; // Don't need any more, always the same datatype
   
@@ -138,7 +150,7 @@ module fpnew_divsqrt_multi #(
     assign reg_ena = (inp_pipe_ready[i] & inp_pipe_valid_q[i]) | reg_ena_i[i];
     // Generate the pipeline registers within the stages, use enable-registers
     `FFL(inp_pipe_operands_q[i+1], inp_pipe_operands_q[i], reg_ena, '0)
-    `FFL(inp_pipe_rnd_mode_q[i+1], inp_pipe_rnd_mode_q[i], reg_ena, fpnew_pkg_snax::RNE)
+    // `FFL(inp_pipe_rnd_mode_q[i+1], inp_pipe_rnd_mode_q[i], reg_ena, fpnew_pkg_snax::RNE)
     // `FFL(inp_pipe_op_q[i+1],       inp_pipe_op_q[i],       reg_ena, fpnew_pkg_snax::FMADD)
     // `FFL(inp_pipe_dst_fmt_q[i+1],  inp_pipe_dst_fmt_q[i],  reg_ena, fpnew_pkg_snax::fp_format_e'(0))
     `FFL(inp_pipe_tag_q[i+1],      inp_pipe_tag_q[i],      reg_ena, TagType'('0))
@@ -148,7 +160,8 @@ module fpnew_divsqrt_multi #(
   end
   // Output stage: assign selected pipe outputs to signals for later use
   assign operands_q = inp_pipe_operands_q[NUM_INP_REGS];
-  assign rnd_mode_q = inp_pipe_rnd_mode_q[NUM_INP_REGS];
+  // assign rnd_mode_q = inp_pipe_rnd_mode_q[NUM_INP_REGS];
+
   // assign op_q       = inp_pipe_op_q[NUM_INP_REGS];
   // assign dst_fmt_q  = inp_pipe_dst_fmt_q[NUM_INP_REGS];
   assign in_valid_q = inp_pipe_valid_q[NUM_INP_REGS];
@@ -160,7 +173,8 @@ module fpnew_divsqrt_multi #(
   // Input processing
   // -----------------
   // logic [1:0]       divsqrt_fmt; now a localparam
-  logic [1:0][63:0] divsqrt_operands; // those are fixed to 64bit
+  // logic [1:0][63:0] divsqrt_operands; // those are fixed to 64bit
+  logic [1:0][WIDTH-1:0] divsqrt_operands; // those are fixed to 64bit
   // logic             input_is_fp8;
 
   // Translate fpnew formats into divsqrt formats // 
@@ -179,6 +193,8 @@ module fpnew_divsqrt_multi #(
   //   divsqrt_operands[0] = input_is_fp8 ? operands_q[0] << 8 : operands_q[0];
   //   divsqrt_operands[1] = input_is_fp8 ? operands_q[1] << 8 : operands_q[1];
   // end
+  assign divsqrt_operands[0] = operands_q[0];
+  assign divsqrt_operands[1] = operands_q[1];
 
   localparam logic [1:0] divsqrt_fmt =
   (FpFormat == fpnew_pkg_snax::FP32)    ? 2'b00 :
@@ -204,7 +220,7 @@ module fpnew_divsqrt_multi #(
 
   // Valids are gated by the FSM ready. Invalid input ops run a sqrt to not lose illegal instr.
   // assign div_valid   = ((in_valid_q & in_ready & ~flush_i) | ext_op_start_q) & (op_q == fpnew_pkg_snax::DIV); // Now always div
-  assign div_valid   = ((in_valid_q & in_ready & ~flush_i) | ext_op_start_q) 
+  assign div_valid   = ((in_valid_q & in_ready & ~flush_i) | ext_op_start_q); 
   // assign sqrt_valid  = ((in_valid_q & in_ready & ~flush_i) | ext_op_start_q) & (op_q != fpnew_pkg_snax::DIV); // sqrt now never used
   assign op_starting = div_valid;  // now never sqrt | sqrt_valid;
 
@@ -311,18 +327,25 @@ module fpnew_divsqrt_multi #(
   fpnew_pkg_snax::status_t unit_status, held_status_q;
   logic               hold_en;
 
-  div_sqrt_top_mvp i_divsqrt_lei #(.FpFormat (FpFormat)) (
+  div_sqrt_top_mvp  #(
+    .FpFormat (FpFormat),
+    .RM_SI    (RM_SI),
+    .PRECISION_CTRL (PRECISION_CTRL)
+    ) i_divsqrt_lei (
    .Clk_CI           ( clk_i                               ),
    .Rst_RBI          ( rst_ni                              ),
    .Div_start_SI     ( div_valid                           ),
   //  .Sqrt_start_SI    ( sqrt_valid                          ),
-   .Sqrt_start_SI    ( 1'b0                                ), // sqrt never used
+  //  .Sqrt_start_SI    ( 1'b0                                ), // sqrt never used
    .Operand_a_DI     ( divsqrt_operands[0]                 ),
-   .Operand_b_DI     ( divsqrt_operands[1]                 ),
-   .RM_SI            ( rnd_mode_q                          ), // rounding mode TODO make parameter
-   .Precision_ctl_SI ( '0                                  ), // TODO make parameter
+  //  .Operand_a_DI     ( 32'b01000001001000000000000000000000), // 10 in fp32               
+  //  .Operand_b_DI     ( divsqrt_operands[1]                 ),
+  // .Operand_b_DI      ( 32'b01000000101000000000000000000000), // 5 in fp32
+  //  .RM_SI            ( rnd_mode_q                          ), 
+  //  .Precision_ctl_SI ( '0                                  ), // 0 Means full precision --> does all the itrations TODO could make a parameter to play with?
   //  .Format_sel_SI    ( divsqrt_fmt                         ),
-   .Kill_SI          ( flush_i | reg_ena_i[NUM_INP_REGS-1] ),
+  //  .Kill_SI          ( flush_i | reg_ena_i[NUM_INP_REGS-1] ),
+   .Kill_SI          ( 1'b0 ),
    .Result_DO        ( unit_result                         ),
    .Fflags_SO        ( unit_status                         ),
    .Ready_SO         ( unit_ready                          ),
@@ -345,7 +368,8 @@ module fpnew_divsqrt_multi #(
   // Output Select
   // --------------
   logic [WIDTH-1:0]   result_d;
-  fpnew_pkg_snax_snax::status_t status_d;
+  // fpnew_pkg_snax_snax::status_t status_d;
+  fpnew_pkg_snax::status_t status_d;
   // Prioritize hold register data
   assign result_d = unit_done_q ? held_result_q : adjusted_result;
   assign status_d = unit_done_q ? held_status_q : unit_status;
@@ -355,7 +379,7 @@ module fpnew_divsqrt_multi #(
   // ----------------
   // Output pipeline signals, index i holds signal after i register stages
   logic               [0:NUM_OUT_REGS][WIDTH-1:0] out_pipe_result_q;
-  fpnew_pkg_snax_snax::status_t [0:NUM_OUT_REGS]            out_pipe_status_q;
+  fpnew_pkg_snax::status_t [0:NUM_OUT_REGS]            out_pipe_status_q;
   TagType             [0:NUM_OUT_REGS]            out_pipe_tag_q;
   logic               [0:NUM_OUT_REGS]            out_pipe_mask_q;
   AuxType             [0:NUM_OUT_REGS]            out_pipe_aux_q;

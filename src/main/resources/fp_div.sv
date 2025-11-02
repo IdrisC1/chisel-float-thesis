@@ -3,6 +3,7 @@ module fp_div #(
   parameter logic [C_PC-1:0] PRECISION_CTRL = 'h00, // determine how precise/how many iterations needed // Full precision as default
   // Datatype
   parameter fpnew_pkg_snax::fp_format_e FpFormat   = fpnew_pkg_snax::fp_format_e'(2),  //FP16 
+  parameter logic [1:0] Iteration_unit_num_S  = 2'b11, //Default 4 
 
   // Round mode
   // parameter fpnew_pkg_snax::roundmode_e RM_SI = fpnew_pkg_snax::RNE
@@ -26,6 +27,7 @@ module fp_div #(
   div_sqrt_top_mvp  #(
     .FpFormat (FpFormat),
     .PRECISION_CTRL (PRECISION_CTRL),
+    .Iteration_unit_num_S (Iteration_unit_num_S),
     .RM_SI    (RM_SI)
     
     ) i_divsqrt_lei (

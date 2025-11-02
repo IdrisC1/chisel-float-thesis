@@ -8,6 +8,7 @@ package fp_unit
 
 import scala.Float
 
+
 import chisel3._
 
 trait FpUtils {
@@ -45,6 +46,148 @@ trait FpUtils {
       (truncated, false)
     }
   }
+
+ 
+
+  //Make a double to UInt function
+
+  /** Generalized helper function to encode Double as UInt */
+def doubleToUInt(expWidth: Int, sigWidth: Int, value: Double): BigInt = {
+  val expSigWidth = expWidth + sigWidth
+  val totalWidth  = expSigWidth + 1
+
+  // IEEE 754 double constants
+  val SIG_BITS64  = 52
+  val BIAS64      = 1023
+
+  // Convert to IEEE 754 64-bit double representation
+  val bits64 = java.lang.Double.doubleToLongBits(value)
+
+  // Extract sign, exponent, and significand
+  val sign     = ((bits64 >>> 63) & 0x1).toInt
+  val exponent = ((bits64 >>> 52) & 0x7ff).toInt
+  val frac     = BigInt(bits64 & 0xfffffffffffffL)
+
+  // Re-normalize the exponent to fit expWidth
+  val biasTarget   = expBias(expWidth)
+  val maxExpTarget = (1 << expWidth) - 1
+  val tentativeExp = exponent - BIAS64 + biasTarget
+
+  val bitsTarget =
+    if (exponent == 0x7ff && frac != 0) {
+      // Canonical NaN
+      val expAllOnes = (1 << expWidth) - 1
+      val fracMSB    = 1L << (sigWidth - 1)
+      (sign.toLong << expSigWidth) | (expAllOnes.toLong << sigWidth) | fracMSB
+
+    } else if (exponent == 0x7ff && frac == 0) {
+      // Infinity
+      val expAllOnes = (1 << expWidth) - 1
+      (sign.toLong << expSigWidth) | (expAllOnes.toLong << sigWidth)
+
+    } else if (exponent == 0 && frac == 0) {
+      // Zero
+      sign.toLong << expSigWidth
+
+    } else if (tentativeExp > maxExpTarget) {
+      // Overflow -> Inf
+      (sign.toLong << expSigWidth) | ((1L << expSigWidth) - 1)
+
+    } else if (exponent == 0 && tentativeExp <= 0) {
+      // From subnormal to subnormal
+      val shift                  = -tentativeExp + SIG_BITS64 - sigWidth
+      val (subnormalFrac, carry) = round(frac, shift, sigWidth)
+      if (carry) {
+        (sign.toLong << expSigWidth) | (1L << sigWidth)
+      } else {
+        (sign.toLong << expSigWidth) | subnormalFrac.toLong
+      }
+
+    } else if (exponent == 0 && tentativeExp > 0) {
+      throw new NotImplementedError("From subnormal to normal")
+
+    } else if (exponent > 0 && tentativeExp <= 0) {
+      // From normal to subnormal
+      val mantissa64             = BigInt(1L << SIG_BITS64) | frac
+      val shift                  = (1 - tentativeExp) + (SIG_BITS64 - sigWidth)
+      val (subnormalFrac, carry) = round(mantissa64, shift, sigWidth)
+      if (carry) {
+        (sign.toLong << expSigWidth) | (1L << sigWidth)
+      } else {
+        (sign.toLong << expSigWidth) | subnormalFrac.toLong
+      }
+
+    } else {
+      // Normal to normal
+      val shift                = SIG_BITS64 - sigWidth
+      val (roundedFrac, carry) = round(frac, shift, sigWidth)
+      val expFinal             = if (carry) tentativeExp + 1 else tentativeExp
+      if (expFinal >= maxExpTarget) {
+        val expAllOnes = (1 << expWidth) - 1
+        (sign.toLong << expSigWidth) | (expAllOnes.toLong << sigWidth)
+      } else {
+        (sign.toLong << expSigWidth) | (expFinal.toLong << sigWidth) | roundedFrac.toLong
+      }
+    }
+
+  BigInt(bitsTarget) & ((BigInt(1) << totalWidth) - 1) // Mask to ensure valid bit-width
+}
+
+/** Generalized helper function to encode Double as UInt */
+def uintToDouble(expWidth: Int, sigWidth: Int, bits: BigInt): Double = {
+  // IEEE-754 double precision constants
+  val BIAS64     = 1023
+  // val EXP_BITS64 = 11
+  val SIG_BITS64 = 52
+
+  // Extract sign, exponent, and significand from encoded UInt
+  val signSrc     = (bits >> (expWidth + sigWidth)) & 0x1
+  val exponentSrc = (bits >> sigWidth) & ((BigInt(1) << expWidth) - 1)
+  val fracSrc     = bits & ((BigInt(1) << sigWidth) - 1)
+
+  val biasSrc   = expBias(expWidth)
+  val maxExpSrc = (BigInt(1) << expWidth) - 1
+  val biasDiff  = BIAS64 - biasSrc
+
+  val bits64: BigInt =
+    if (exponentSrc == 0 && fracSrc == 0) {
+      // True zero
+      signSrc << 63
+
+    } else if (exponentSrc == maxExpSrc) {
+      // Inf or NaN
+      val isNaN  = fracSrc != 0
+      val frac64 = if (isNaN) BigInt(1L << (SIG_BITS64 - 1)) else BigInt(0)
+      (signSrc << 63) | (BigInt(0x7ffL) << 52) | frac64
+
+    } else if (exponentSrc == 0 && biasDiff > 0) {
+      // Subnormal to normal
+      val leading = (fracSrc.bitLength - sigWidth) max 0
+      val normalized = (fracSrc << (leading + 1)) & ((BigInt(1) << sigWidth) - 1)
+      val frac64 = normalized << (SIG_BITS64 - sigWidth)
+      val exp64  = biasDiff - leading
+      (signSrc << 63) | (BigInt(exp64) << 52) | frac64
+
+    } else if (exponentSrc == 0 && biasDiff <= 0) {
+      // Subnormal to subnormal
+      val shift = (-biasDiff + sigWidth - SIG_BITS64) max 0
+      val subnormalFrac = fracSrc >> shift
+      (signSrc << 63) | subnormalFrac
+
+    } else if (biasDiff < 0) {
+      // Normal to subnormal (not handled yet)
+      throw new NotImplementedError("From normal to subnormal")
+
+    } else {
+      // Normal to normal
+      val frac64 = fracSrc << (SIG_BITS64 - sigWidth)
+      val exp64  = exponentSrc - biasSrc + BIAS64
+      (signSrc << 63) | (exp64 << 52) | frac64
+    }
+
+  java.lang.Double.longBitsToDouble(bits64.toLong)
+}
+
 
   /** Generalized helper function to encode Float as UInt */
   def floatToUInt(expWidth: Int, sigWidth: Int, value: Float): BigInt = {
@@ -184,6 +327,12 @@ trait FpUtils {
   def uintToFloat(fpType: FpType, value: UInt):   Float  = uintToFloat(fpType.expWidth, fpType.sigWidth, value.litValue)
   def quantize(fpType:    FpType, value: Float):  Float  = uintToFloat(fpType, floatToUInt(fpType, value))
 
+  def doubleToUInt(fpType: FpType, value: Double):  BigInt = doubleToUInt(fpType.expWidth, fpType.sigWidth, value)
+  def uintToDouble(fpType: FpType, value: BigInt): Double  = uintToDouble(fpType.expWidth, fpType.sigWidth, value)
+  def uintToDouble(fpType: FpType, value: UInt):   Double  = uintToDouble(fpType.expWidth, fpType.sigWidth, value.litValue)
+  def quantizeDouble(fpType:    FpType, value: Double):  Double  = uintToDouble(fpType, doubleToUInt(fpType, value))
+
+
   /** Generate a true random value in the given FpType, where exponent and mantissa are sampled independently */
   def getTrueRandomValue(fpType: FpType)(implicit rng: Option[scala.util.Random] = None): Float = {
     val r          = rng.getOrElse(new scala.util.Random())
@@ -204,6 +353,24 @@ trait FpUtils {
     // Test with ints
     // ((2 * r.nextFloat() - 1f) * maxVal).toInt.toFloat
   }
+
+
+    /** Generated a bounded random double in the given FpType. Maximum value should be calculated such that a large number
+    * of operations on randomly sampled numbers will not overflow with high probability
+    */
+  def genRandomValueDouble(fpType: FpType)(implicit rng: Option[scala.util.Random] = None): Double = {
+    val expMargin   = 0.4
+    val maxExpWidth = math.max((expMargin * fpType.expWidth).toInt, 1)
+    val maxExponent = ((1 << (maxExpWidth - 1)) - 1)
+    val maxVal      = (1 << maxExponent).toFloat
+    val r           = rng.getOrElse(new scala.util.Random())
+    (2 * r.nextDouble() - 1f) * maxVal
+    // Test with ints
+    // ((2 * r.nextFloat() - 1f) * maxVal).toInt.toFloat
+  }
+
+
+
 
   /** Process two floating point numbers in a given format by introducing the hardware limitations of this format */
   def fpOperationHardware(a: Float, b: Float, typeA: FpType, typeB: FpType, op: (Float, Float) => Float) = {

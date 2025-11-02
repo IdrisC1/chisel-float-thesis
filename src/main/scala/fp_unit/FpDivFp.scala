@@ -4,7 +4,7 @@ package fp_unit
 import chisel3._
 import chisel3.util.HasBlackBoxResource
 import chisel3.experimental.RawParam
-import chisel3.util._
+// import chisel3.util._
 
 /** BlackBox wrapper for fpnew_divsqrt_multiV2.sv */
 class FpDivFpBlackBox(
@@ -23,6 +23,7 @@ class FpDivFpBlackBox(
     // "PipeConfig" -> fpnew_pkg_snax::AFTER,
     // "TagType" -> "logic",
     "PRECISION_CTRL" -> RawParam("'h00"),
+    "Iteration_unit_num_S" -> RawParam("2'b11") // Use four units
     // "RM_SI"       -> RawParam("'h0")
 )) with HasBlackBoxResource {
 

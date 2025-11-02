@@ -36,6 +36,7 @@
 module nrbd_nrsc_mvp #(
   parameter fpnew_pkg_snax::fp_format_e FpFormat = fpnew_pkg_snax::FP32,
   parameter logic [C_PC-1:0] PRECISION_CTRL = 'h00,// Full precision as default
+  parameter logic [1:0] Iteration_unit_num_S  = 2'b11, //Default 4 
 
   
   parameter int unsigned EXP_BITS = fpnew_pkg_snax::exp_bits(FpFormat),
@@ -89,7 +90,8 @@ module nrbd_nrsc_mvp #(
 
 control_mvp  #(
   .FpFormat (FpFormat),
-  .PRECISION_CTRL (PRECISION_CTRL)
+  .PRECISION_CTRL (PRECISION_CTRL),
+  .Iteration_unit_num_S (Iteration_unit_num_S)
 ) control_U0
 (  .Clk_CI                                   (Clk_CI                          ),
    .Rst_RBI                                  (Rst_RBI                         ),

@@ -22,7 +22,7 @@ package defs_div_sqrt_mvp;
    localparam C_PC                  = 6; // Precision Control
    localparam C_FS                  = 2; // Format Selection
    localparam C_IUNC                = 2; // Iteration Unit Number Control
-   localparam Iteration_unit_num_S  = 2'b10;
+   // localparam Iteration_unit_num_S  = 2'b11; //2'b10;
 
    // FP64
    localparam C_OP_FP64             = 64;

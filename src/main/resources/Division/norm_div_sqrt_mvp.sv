@@ -508,8 +508,9 @@ module norm_div_sqrt_mvp #(
         Mant_roundUp_S = 1'b0;
         case (RM_SI)
           C_RM_NEAREST :
+            //Mant_roundUp_S = Mant_lower_D[1] && ((Mant_lower_D[0] | Mant_sticky_bit_D )| ( (FP32_SI&&Mant_upper_D[C_MANT_FP64-C_MANT_FP32]) | (FP64_SI&&Mant_upper_D[0]) | (FP16_SI&&Mant_upper_D[C_MANT_FP64-C_MANT_FP16]) | (FP16ALT_SI&&Mant_upper_D[C_MANT_FP64-C_MANT_FP16ALT]) ) );
             // Mant_roundUp_S = Mant_lower_D[1] && ((Mant_lower_D[0] | Mant_sticky_bit_D )| ( ((FpFormat == fpnew_pkg_snax::FP32)&&Mant_upper_D[C_MANT_FP64-C_MANT_FP32]) | ((FpFormat == fpnew_pkg_snax::FP64)&&Mant_upper_D[0]) | ((FpFormat == fpnew_pkg_snax::FP16)&&Mant_upper_D[C_MANT_FP64-C_MANT_FP16]) | ((FpFormat == fpnew_pkg_snax::FP16ALT)&&Mant_upper_D[C_MANT_FP64-C_MANT_FP16ALT]) ) );
-            Mant_roundUp_S = Mant_lower_D[1] && ((Mant_lower_D[0] | Mant_sticky_bit_D )| ( ((FpFormat == fpnew_pkg_snax::FP32)&&Mant_upper_D[0]) | ((FpFormat == fpnew_pkg_snax::FP64)&&Mant_upper_D[0]) | ((FpFormat == fpnew_pkg_snax::FP16)&&Mant_upper_D[0]) | ((FpFormat == fpnew_pkg_snax::FP16ALT)&&Mant_upper_D[0]) ) );
+            Mant_roundUp_S = Mant_lower_D[1] && ((Mant_lower_D[0] | Mant_sticky_bit_D )| ( ((FpFormat == fpnew_pkg_snax::FP32)&&Mant_upper_D[0]) | ((FpFormat == fpnew_pkg_snax::FP64)&&Mant_upper_D[0]) | ((FpFormat == fpnew_pkg_snax::FP16)&&Mant_upper_D[0]) | ((FpFormat == fpnew_pkg_snax::FP16ALT)&&Mant_upper_D[0])));
           C_RM_TRUNC   :
             Mant_roundUp_S = 0;
           C_RM_PLUSINF :
@@ -523,7 +524,7 @@ module norm_div_sqrt_mvp #(
 
   logic                                 Mant_renorm_S;
   // logic  [C_MANT_FP64:0]                Mant_roundUp_Vector_S; // for all the formats
-  logic  [MAN_BITS:0]                Mant_roundUp_Vector_S; // for all the formats
+  logic                  Mant_roundUp_Vector_S; 
 
   // assign Mant_roundUp_Vector_S={7'h0,(FP16ALT_SI&&Mant_roundUp_S),2'h0,(FP16_SI&&Mant_roundUp_S),12'h0,(FP32_SI&&Mant_roundUp_S),28'h0,(FP64_SI&&Mant_roundUp_S)};
   assign Mant_roundUp_Vector_S = Mant_roundUp_S;

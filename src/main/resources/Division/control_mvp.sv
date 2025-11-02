@@ -43,6 +43,8 @@ import defs_div_sqrt_mvp::*;
 module control_mvp # (
   parameter fpnew_pkg_snax::fp_format_e FpFormat = fpnew_pkg_snax::FP32,
   parameter logic [C_PC-1:0] PRECISION_CTRL = 'h00, // Full precision as default
+   
+  parameter logic [1:0] Iteration_unit_num_S  = 2'b11, //Default 4 
 
   parameter int unsigned EXP_BITS = fpnew_pkg_snax::exp_bits(FpFormat),
   parameter int unsigned MAN_BITS = fpnew_pkg_snax::man_bits(FpFormat),
@@ -2854,7 +2856,7 @@ assign Denominator_se_format_DB={Denominator_se_DB,
    // Precision Control for outputs                                          //
    /////////////////////////////////////////////////////////////////////////////
 
-//TODO REMOVE ALL ALWAYS COMB BLOCK AND 
+ 
 //////////////////////one iteration unit, start///////////////////////////////////////
    generate
      if(Iteration_unit_num_S==2'b00)
@@ -2871,97 +2873,99 @@ assign Denominator_se_format_DB={Denominator_se_DB,
                     6'h00:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32+4:0],{(C_MANT_FP64-C_MANT_FP32){1'b0}}}; //+4
-                        Mant_result_prenorm_DO = Quotient_DP[MAN_BITS+4:0]; //+4
+                        // Mant_result_prenorm_DO = Quotient_DP[MAN_BITS+4:0]; //+4
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:1],1'b1}; //+4
                       end
                     6'h17:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32:0],{(C_MANT_FP64-C_MANT_FP32+4){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS:0],{(4){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS:0],{(4){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h16:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-1:0],{(C_MANT_FP64-C_MANT_FP32+4+1){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-1:0],{(4+1){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-1:0],{(4+1){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h15:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-2:0],{(C_MANT_FP64-C_MANT_FP32+4+2){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-2:0],{(4+2){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-2:0],{(4+2){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h14:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-3:0],{(C_MANT_FP64-C_MANT_FP32+4+3){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-3:0],{(4+3){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-3:0],{(4+3){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h13:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-4:0],{(C_MANT_FP64-C_MANT_FP32+4+4){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-4:0],{(4+4){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-4:0],{(4+4){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h12:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-5:0],{(C_MANT_FP64-C_MANT_FP32+4+5){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-5:0],{(4+5){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-5:0],{(4+5){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h11:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-6:0],{(C_MANT_FP64-C_MANT_FP32+4+6){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-6:0],{(4+6){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-6:0],{(4+6){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h10:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-7:0],{(C_MANT_FP64-C_MANT_FP32+4+7){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-7:0],{(4+7){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-7:0],{(4+7){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h0f:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-8:0],{(C_MANT_FP64-C_MANT_FP32+4+8){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-8:0],{(4+8){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-8:0],{(4+8){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h0e:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-9:0],{(C_MANT_FP64-C_MANT_FP32+4+9){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-9:0],{(4+9){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-9:0],{(4+9){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h0d:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-10:0],{(C_MANT_FP64-C_MANT_FP32+4+10){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-10:0],{(4+10){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-10:0],{(4+10){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h0c:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-11:0],{(C_MANT_FP64-C_MANT_FP32+4+11){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-11:0],{(4+11){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-11:0],{(4+11){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h0b:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-12:0],{(C_MANT_FP64-C_MANT_FP32+4+12){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-12:0],{(4+12){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-12:0],{(4+12){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h0a:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-13:0],{(C_MANT_FP64-C_MANT_FP32+4+13){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-13:0],{(4+13){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-13:0],{(4+13){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h09:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-14:0],{(C_MANT_FP64-C_MANT_FP32+4+14){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-14:0],{(4+14){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-14:0],{(4+14){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h08:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-15:0],{(C_MANT_FP64-C_MANT_FP32+4+15){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-15:0],{(4+15){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-15:0],{(4+15){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h07:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-16:0],{(C_MANT_FP64-C_MANT_FP32+4+16){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-16:0],{(4+16){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-16:0],{(4+16){1'b1}}}; //Precision_ctl_S+1
                       end
                     default :
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32+4:0],{(C_MANT_FP64-C_MANT_FP32){1'b0}}}; //+4
-                        Mant_result_prenorm_DO = Quotient_DP[MAN_BITS+4:0]; //+4
+                        // Mant_result_prenorm_DO = Quotient_DP[MAN_BITS+4:0]; //+4
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:1],1'b1}; //+4
                       end
                   endcase
                     end
@@ -2976,242 +2980,244 @@ assign Denominator_se_format_DB={Denominator_se_DB,
                     6'h00:
                       begin
                         // Mant_result_prenorm_DO = Quotient_DP[C_MANT_FP64+4:0]; //+4
-                        Mant_result_prenorm_DO = Quotient_DP[MAN_BITS+4:0]; //+4
+                        // Mant_result_prenorm_DO = Quotient_DP[MAN_BITS+4:0]; //+4
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:1],1'b1}; //+4
                       end
                     6'h34:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64:0],{(4){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS:0],{(4){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS:0],{(4){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h33:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-1:0],{(4+1){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-1:0],{(4+1){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-1:0],{(4+1){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h32:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-2:0],{(4+2){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-2:0],{(4+2){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-2:0],{(4+2){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h31:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-3:0],{(4+3){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-3:0],{(4+3){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-3:0],{(4+3){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h30:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-4:0],{(4+4){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-4:0],{(4+4){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-4:0],{(4+4){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h2f:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-5:0],{(4+5){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-5:0],{(4+5){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-5:0],{(4+5){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h2e:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-6:0],{(4+6){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-6:0],{(4+6){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-6:0],{(4+6){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h2d:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-7:0],{(4+7){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-7:0],{(4+7){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-7:0],{(4+7){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h2c:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-8:0],{(4+8){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-8:0],{(4+8){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-8:0],{(4+8){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h2b:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-9:0],{(4+9){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-9:0],{(4+9){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-9:0],{(4+9){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h2a:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-10:0],{(4+10){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-10:0],{(4+10){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-10:0],{(4+10){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h29:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-11:0],{(4+11){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-11:0],{(4+11){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-11:0],{(4+11){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h28:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-12:0],{(4+12){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-12:0],{(4+12){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-12:0],{(4+12){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h27:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-13:0],{(4+13){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-13:0],{(4+13){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-13:0],{(4+13){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h26:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-14:0],{(4+14){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-14:0],{(4+14){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-14:0],{(4+14){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h25:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-15:0],{(4+15){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-15:0],{(4+15){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-15:0],{(4+15){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h24:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-16:0],{(4+16){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-16:0],{(4+16){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-16:0],{(4+16){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h23:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-17:0],{(4+17){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-17:0],{(4+17){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-17:0],{(4+17){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h22:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-18:0],{(4+18){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-18:0],{(4+18){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-18:0],{(4+18){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h21:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-19:0],{(4+19){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-19:0],{(4+19){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-19:0],{(4+19){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h20:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-20:0],{(4+20){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-20:0],{(4+20){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-20:0],{(4+20){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h1f:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-21:0],{(4+21){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-21:0],{(4+21){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-21:0],{(4+21){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h1e:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-22:0],{(4+22){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-22:0],{(4+22){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-22:0],{(4+22){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h1d:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-23:0],{(4+23){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-23:0],{(4+23){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-23:0],{(4+23){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h1c:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-24:0],{(4+24){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-24:0],{(4+24){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-24:0],{(4+24){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h1b:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-25:0],{(4+25){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-25:0],{(4+25){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-25:0],{(4+25){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h1a:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-26:0],{(4+26){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-26:0],{(4+26){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-26:0],{(4+26){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h19:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-27:0],{(4+27){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-27:0],{(4+27){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-27:0],{(4+27){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h18:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-28:0],{(4+28){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-28:0],{(4+28){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-28:0],{(4+28){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h17:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-29:0],{(4+29){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-29:0],{(4+29){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-29:0],{(4+29){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h16:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-30:0],{(4+30){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-30:0],{(4+30){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-30:0],{(4+30){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h15:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-31:0],{(4+31){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-31:0],{(4+31){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-31:0],{(4+31){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h14:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-32:0],{(4+32){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-32:0],{(4+32){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-32:0],{(4+32){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h13:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-33:0],{(4+33){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-33:0],{(4+33){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-33:0],{(4+33){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h12:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-34:0],{(4+34){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-34:0],{(4+34){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-34:0],{(4+34){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h11:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-35:0],{(4+35){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-35:0],{(4+35){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-35:0],{(4+35){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h10:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-36:0],{(4+36){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-36:0],{(4+36){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-36:0],{(4+36){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h0f:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-37:0],{(4+37){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-37:0],{(4+37){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-37:0],{(4+37){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h0e:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-38:0],{(4+38){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-38:0],{(4+38){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-38:0],{(4+38){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h0d:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-39:0],{(4+39){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-39:0],{(4+39){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-39:0],{(4+39){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h0c:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-40:0],{(4+40){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-40:0],{(4+40){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-40:0],{(4+40){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h0b:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-41:0],{(4+41){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-41:0],{(4+41){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-41:0],{(4+41){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h0a:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-42:0],{(4+42){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-42:0],{(4+42){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-42:0],{(4+42){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h09:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-43:0],{(4+43){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-43:0],{(4+43){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-43:0],{(4+43){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h08:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-44:0],{(4+44){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-44:0],{(4+44){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-44:0],{(4+44){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h07:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-45:0],{(4+45){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-45:0],{(4+45){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-45:0],{(4+45){1'b1}}}; //Precision_ctl_S+1
                       end
                     default:
                       begin
                         // Mant_result_prenorm_DO = Quotient_DP[C_MANT_FP64+4:0]; //+4
-                        Mant_result_prenorm_DO = Quotient_DP[MAN_BITS+4:0]; //+4
+                        // Mant_result_prenorm_DO = Quotient_DP[MAN_BITS+4:0]; //+4
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:1],1'b1}; //+4
                       end
                   endcase
                     end
@@ -3225,32 +3231,34 @@ assign Denominator_se_format_DB={Denominator_se_DB,
                     6'b00:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16+4:0],{(C_MANT_FP64-C_MANT_FP16){1'b0}}}; //+4
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        // Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:1],1'b1}; //+4
                       end
                     6'h0a:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16:0],{(C_MANT_FP64-C_MANT_FP16+4){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS:0],{(4){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS:0],{(4){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h09:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16-1:0],{(C_MANT_FP64-C_MANT_FP16+4+1){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-1:0],{(4+1){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-1:0],{(4+1){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h08:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16-2:0],{(C_MANT_FP64-C_MANT_FP16+4+2){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-2:0],{(4+2){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-2:0],{(4+2){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h07:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16-3:0],{(C_MANT_FP64-C_MANT_FP16+4+3){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-3:0],{(4+3){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-3:0],{(4+3){1'b1}}}; //Precision_ctl_S+1
                       end
                     default :
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16+4:0],{(C_MANT_FP64-C_MANT_FP16){1'b0}}}; //+4
-                        Mant_result_prenorm_DO = Quotient_DP[MAN_BITS+4:0]; //+4
+                        // Mant_result_prenorm_DO = Quotient_DP[MAN_BITS+4:0]; //+4
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:1],1'b1}; //+4
                       end
                   endcase
                     end
@@ -3264,17 +3272,19 @@ assign Denominator_se_format_DB={Denominator_se_DB,
                     6'b00:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16ALT+4:0],{(C_MANT_FP64-C_MANT_FP16ALT){1'b0}}}; //+4
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        // Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:1],1'b1}; //+4
                       end
                     6'h07:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16ALT:0],{(C_MANT_FP64-C_MANT_FP16ALT+4){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS:0],{(4){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS:0],{(4){1'b1}}}; //Precision_ctl_S+1
                       end
                     default :
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16ALT+4:0],{(C_MANT_FP64-C_MANT_FP16ALT){1'b0}}}; //+4
-                        Mant_result_prenorm_DO = Quotient_DP[MAN_BITS+4:0]; //+4
+                        // Mant_result_prenorm_DO = Quotient_DP[MAN_BITS+4:0]; //+4
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:1],1'b1}; //+4
                       end
                   endcase
                     end
@@ -3301,57 +3311,59 @@ assign Denominator_se_format_DB={Denominator_se_DB,
                     6'h00:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32+4:0],{(C_MANT_FP64-C_MANT_FP32){1'b0}}}; //+4
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        // Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:1],1'b1}; //+4
                       end
                     6'h17,6'h16:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32:0],{(C_MANT_FP64-C_MANT_FP32+4){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS:0],{(4){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS:0],{(4){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h15,6'h14:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-2:0],{(C_MANT_FP64-C_MANT_FP32+4+2){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-2:0],{(4+2){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-2:0],{(4+2){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h13,6'h12:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-4:0],{(C_MANT_FP64-C_MANT_FP32+4+4){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-4:0],{(4+4){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-4:0],{(4+4){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h11,6'h10:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-6:0],{(C_MANT_FP64-C_MANT_FP32+4+6){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-6:0],{(4+6){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-6:0],{(4+6){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h0f,6'h0e:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-8:0],{(C_MANT_FP64-C_MANT_FP32+4+8){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-8:0],{(4+8){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-8:0],{(4+8){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h0d,6'h0c:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-10:0],{(C_MANT_FP64-C_MANT_FP32+4+10){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-10:0],{(4+10){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-10:0],{(4+10){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h0b,6'h0a:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-12:0],{(C_MANT_FP64-C_MANT_FP32+4+12){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-12:0],{(4+12){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-12:0],{(4+12){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h09,6'h08:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-14:0],{(C_MANT_FP64-C_MANT_FP32+4+14){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-14:0],{(4+14){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-14:0],{(4+14){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h07,6'h06:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-16:0],{(C_MANT_FP64-C_MANT_FP32+4+16){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-16:0],{(4+16){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-16:0],{(4+16){1'b1}}}; //Precision_ctl_S+1
                       end
                     default:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32+4:0],{(C_MANT_FP64-C_MANT_FP32){1'b0}}}; //+4
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        // Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:1],1'b1}; //+4
                       end
                   endcase
                 end
@@ -3365,132 +3377,132 @@ assign Denominator_se_format_DB={Denominator_se_DB,
                     6'h00:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64+3:0],1'b0}; //+3
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+3:0],1'b0}; //+3
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+3:0],1'b1}; //+3
                       end
                     6'h34:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64+1:1],{(4){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+1:1],{(4){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+1:1],{(4){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h33,6'h32:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-1:0],{(4+1){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-1:0],{(4+1){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-1:0],{(4+1){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h31,6'h30:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-3:0],{(4+3){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-3:0],{(4+3){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-3:0],{(4+3){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h2f,6'h2e:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-5:0],{(4+5){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-5:0],{(4+5){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-5:0],{(4+5){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h2d,6'h2c:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-7:0],{(4+7){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-7:0],{(4+7){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-7:0],{(4+7){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h2b,6'h2a:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-9:0],{(4+9){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-9:0],{(4+9){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-9:0],{(4+9){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h29,6'h28:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-11:0],{(4+11){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-11:0],{(4+11){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-11:0],{(4+11){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h27,6'h26:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-13:0],{(4+13){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-13:0],{(4+13){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-13:0],{(4+13){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h25,6'h24:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-15:0],{(4+15){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-15:0],{(4+15){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-15:0],{(4+15){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h23,6'h22:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-17:0],{(4+17){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-17:0],{(4+17){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-17:0],{(4+17){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h21,6'h20:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-19:0],{(4+19){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-19:0],{(4+19){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-19:0],{(4+19){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h1f,6'h1e:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-21:0],{(4+21){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-21:0],{(4+21){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-21:0],{(4+21){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h1d,6'h1c:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-23:0],{(4+23){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-23:0],{(4+23){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-23:0],{(4+23){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h1b,6'h1a:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-25:0],{(4+25){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-25:0],{(4+25){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-25:0],{(4+25){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h19,6'h18:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-27:0],{(4+27){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-27:0],{(4+27){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-27:0],{(4+27){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h17,6'h16:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-29:0],{(4+29){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-29:0],{(4+29){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-29:0],{(4+29){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h15,6'h14:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-31:0],{(4+31){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-31:0],{(4+31){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-31:0],{(4+31){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h13,6'h12:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-33:0],{(4+33){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-33:0],{(4+33){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-33:0],{(4+33){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h11,6'h10:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-35:0],{(4+35){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-35:0],{(4+35){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-35:0],{(4+35){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h0f,6'h0e:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-37:0],{(4+37){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-37:0],{(4+37){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-37:0],{(4+37){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h0d,6'h0c:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-39:0],{(4+39){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-39:0],{(4+39){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-39:0],{(4+39){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h0b,6'h0a:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-41:0],{(4+41){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-41:0],{(4+41){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-41:0],{(4+41){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h09,6'h08:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-43:0],{(4+43){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-43:0],{(4+43){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-43:0],{(4+43){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h07:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-45:0],{(4+45){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-45:0],{(4+45){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-45:0],{(4+45){1'b1}} }; //Precision_ctl_S+1
                       end
                     default:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64+3:0],1'b0}; //+3
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+3:0],1'b0}; //+3
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+3:0],1'b1}; //+3
                       end
                   endcase
                 end
@@ -3504,27 +3516,27 @@ assign Denominator_se_format_DB={Denominator_se_DB,
                     6'b00:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16+3:0],{(C_MANT_FP64-C_MANT_FP16+1){1'b0}} }; //+3
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+3:0],{(1){1'b0}} }; //+3
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+3:0],{(1){1'b1}} }; //+3
                       end
                     6'h0a:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16+1:1],{(C_MANT_FP64-C_MANT_FP16+4){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+1:1],{(4){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+1:1],{(4){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h09,6'h08:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16-1:0],{(C_MANT_FP64-C_MANT_FP16+4+1){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-1:0],{(4+1){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-1:0],{(4+1){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h07:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16-3:0],{(C_MANT_FP64-C_MANT_FP16+4+3){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-3:0],{(4+3){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-3:0],{(4+3){1'b1}} }; //Precision_ctl_S+1
                       end
                     default :
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16+4:0],{(C_MANT_FP64-C_MANT_FP16){1'b0}} }; //+4
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]} ; //+4
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+3:0],{(1){1'b1}} }; //+3
                       end
                   endcase
                 end
@@ -3539,17 +3551,20 @@ assign Denominator_se_format_DB={Denominator_se_DB,
                     6'b00:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16ALT+4:0],{(C_MANT_FP64-C_MANT_FP16ALT){1'b0}} }; //+4
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        // Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+3:0],1'b1}; //+3
+                        
                       end
                     6'h07:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16ALT:0],{(C_MANT_FP64-C_MANT_FP16ALT+4){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS:0],{(4){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS:0],{(4){1'b1}} }; //Precision_ctl_S+1
                       end
                     default :
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16ALT+4:0],{(C_MANT_FP64-C_MANT_FP16ALT){1'b0}} }; //+4
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        // Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+3:0],1'b1}; //+3
                       end
                   endcase
                 end
@@ -3576,42 +3591,43 @@ assign Denominator_se_format_DB={Denominator_se_DB,
                     6'h00:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32+3:0],{(C_MANT_FP64-C_MANT_FP32+1){1'b0}}}; //+3
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+3:0],{(1){1'b0}}}; //+3
+                        // Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+3:0],{(1){1'b0}}}; //In original code was adding an additional zero -> gave rounding error
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+3:0],{(1){1'b1}}}; //+3
                       end
                     6'h17,6'h16,6'h15:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32:0],{(C_MANT_FP64-C_MANT_FP32+4){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS:0],{(4){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS:0],{(4){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h14,6'h13,6'h12:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-3:0],{(C_MANT_FP64-C_MANT_FP32+4+3){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-3:0],{(4+3){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-3:0],{(4+3){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h11,6'h10,6'h0f:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-6:0],{(C_MANT_FP64-C_MANT_FP32+4+6){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-6:0],{(4+6){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-6:0],{(4+6){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h0e,6'h0d,6'h0c:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-9:0],{(C_MANT_FP64-C_MANT_FP32+4+9){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-9:0],{(4+9){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-9:0],{(4+9){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h0b,6'h0a,6'h09:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-12:0],{(C_MANT_FP64-C_MANT_FP32+4+12){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-12:0],{(4+12){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-12:0],{(4+12){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h08,6'h07,6'h06:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-15:0],{(C_MANT_FP64-C_MANT_FP32+4+15){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-15:0],{(4+15){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-15:0],{(4+15){1'b1}}}; //Precision_ctl_S+1
                       end
                     default:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32+3:0],{(C_MANT_FP64-C_MANT_FP32+1){1'b0}}}; //+3
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+3:0],{(1){1'b0}}}; //+3
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+3:0],{(1){1'b1}}}; //+3
                       end
                   endcase
                 end
@@ -3625,92 +3641,94 @@ assign Denominator_se_format_DB={Denominator_se_DB,
                     6'h00:
                       begin
                         // Mant_result_prenorm_DO = Quotient_DP[C_MANT_FP64+4:0]; //+4
-                        Mant_result_prenorm_DO = Quotient_DP[MAN_BITS+4:0]; //+4
+                        // Mant_result_prenorm_DO = Quotient_DP[MAN_BITS+4:0]; //+4
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:1],1'b1}; //+4
                       end
                     6'h34,6'h33:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64+1:1],{(4){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+1:1],{(4){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+1:1],{(4){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h32,6'h31,6'h30:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-2:0],{(4+2){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-2:0],{(4+2){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-2:0],{(4+2){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h2f,6'h2e,6'h2d:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-5:0],{(4+5){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-5:0],{(4+5){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-5:0],{(4+5){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h2c,6'h2b,6'h2a:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-8:0],{(4+8){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-8:0],{(4+8){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-8:0],{(4+8){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h29,6'h28,6'h27:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-11:0],{(4+11){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-11:0],{(4+11){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-11:0],{(4+11){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h26,6'h25,6'h24:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-14:0],{(4+14){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-14:0],{(4+14){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-14:0],{(4+14){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h23,6'h22,6'h21:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-17:0],{(4+17){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-17:0],{(4+17){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-17:0],{(4+17){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h20,6'h1f,6'h1e:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-20:0],{(4+20){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-20:0],{(4+20){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-20:0],{(4+20){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h1d,6'h1c,6'h1b:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-23:0],{(4+23){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-23:0],{(4+23){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-23:0],{(4+23){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h1a,6'h19,6'h18:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-26:0],{(4+26){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-26:0],{(4+26){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-26:0],{(4+26){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h17,6'h16,6'h15:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-29:0],{(4+29){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-29:0],{(4+29){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-29:0],{(4+29){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h14,6'h13,6'h12:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-32:0],{(4+32){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-32:0],{(4+32){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-32:0],{(4+32){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h11,6'h10,6'h0f:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-35:0],{(4+35){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-35:0],{(4+35){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-35:0],{(4+35){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h0e,6'h0d,6'h0c:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-38:0],{(4+38){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-38:0],{(4+38){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-38:0],{(4+38){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h0b,6'h0a,6'h09:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-41:0],{(4+41){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-41:0],{(4+41){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-41:0],{(4+41){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h08,6'h07,6'h06:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-44:0],{(4+44){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-44:0],{(4+44){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-44:0],{(4+44){1'b1}} }; //Precision_ctl_S+1
                       end
                     default:
                       begin
                         // Mant_result_prenorm_DO = Quotient_DP[C_MANT_FP64+4:0]; //+4
-                        Mant_result_prenorm_DO = Quotient_DP[MAN_BITS+4:0]; //+4
+                        // Mant_result_prenorm_DO = Quotient_DP[MAN_BITS+4:0]; //+4
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:1],1'b1}; //+4
                       end
                   endcase
                 end
@@ -3724,22 +3742,24 @@ assign Denominator_se_format_DB={Denominator_se_DB,
                     6'b00:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16+4:0],{(C_MANT_FP64-C_MANT_FP16){1'b0}} }; //+4
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        // Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:1],1'b1}; //+4
                       end
                     6'h0a,6'h09:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16+1:1],{(C_MANT_FP64-C_MANT_FP16+4){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+1:1],{(4){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+1:1],{(4){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h08,6'h07,6'h06:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16-2:0],{(C_MANT_FP64-C_MANT_FP16+4+2){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-2:0],{(4+2){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-2:0],{(4+2){1'b1}} }; //Precision_ctl_S+1
                       end
                     default :
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16+4:0],{(C_MANT_FP64-C_MANT_FP16){1'b0}} }; //+4
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        // Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:1],1'b1}; //+4
                       end
                   endcase
                 end
@@ -3754,17 +3774,21 @@ assign Denominator_se_format_DB={Denominator_se_DB,
                     6'b00:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16ALT+4:0],{(C_MANT_FP64-C_MANT_FP16ALT){1'b0}} }; //+4
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        // Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:1],1'b1}; //+4
                       end
                     6'h07,6'h06:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16ALT+4:0],{(C_MANT_FP64-C_MANT_FP16ALT){1'b0}} }; //+4
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0] }; //+4
+                        // Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0] }; //+4
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:1],1'b1}; //+4
                       end
                     default :
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16ALT+4:0],{(C_MANT_FP64-C_MANT_FP16ALT){1'b0}} }; //+4
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0] }; //+4
+                        // Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0] }; //+4
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:1],1'b1}; //+4
+                        
                       end
                   endcase
                 end
@@ -3779,176 +3803,193 @@ assign Denominator_se_format_DB={Denominator_se_DB,
    generate
      if(Iteration_unit_num_S==2'b11)
        begin
-        always_comb
-          begin
+        
             // case (Format_sel_S)
             if (FpFormat == fpnew_pkg_snax::FP32)
+              
               // 2'b00:
                 begin
+                  always_comb
+                  begin
                   case (PRECISION_CTRL)
                     6'h00:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32+4:0],{(C_MANT_FP64-C_MANT_FP32){1'b0}}}; //+4
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        // Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:1],1'b1}; //+4
                       end
                     6'h17,6'h16,6'h15,6'h14:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32:0],{(C_MANT_FP64-C_MANT_FP32+4){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS:0],{(4){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS:0],{(4){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h13,6'h12,6'h11,6'h10:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-4:0],{(C_MANT_FP64-C_MANT_FP32+4+4){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-4:0],{(4+4){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-4:0],{(4+4){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h0f,6'h0e,6'h0d,6'h0c:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-8:0],{(C_MANT_FP64-C_MANT_FP32+4+8){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-8:0],{(4+8){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-8:0],{(4+8){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h0b,6'h0a,6'h09,6'h08:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-12:0],{(C_MANT_FP64-C_MANT_FP32+4+12){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-12:0],{(4+12){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-12:0],{(4+12){1'b1}}}; //Precision_ctl_S+1
                       end
                     6'h07,6'h06:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-16:0],{(C_MANT_FP64-C_MANT_FP32+4+16){1'b0}}}; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-16:0],{(4+16){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-16:0],{(4+16){1'b1}}}; //Precision_ctl_S+1
                       end
                     default:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32+4:0],{(C_MANT_FP64-C_MANT_FP32){1'b0}}}; //+4
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        // Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:1],1'b1}; //+4
                       end
                   endcase
+                end
                 end
             else if (FpFormat == fpnew_pkg_snax::FP64)
               // 2'b01:
                 begin
+                  always_comb
+                  begin
                   case (PRECISION_CTRL)
                     6'h00:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64+3:0],{(1){1'b0}}}; //+3
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+3:0],{(1){1'b0}}}; //+3
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+3:0],{(1){1'b1}}}; //+3
                       end
                     6'h34:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64+3:0],{(1){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+3:0],{(1){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+3:0],{(1){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h33,6'h32,6'h31,6'h30:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-1:0],{(5){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-1:0],{(5){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-1:0],{(5){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h2f,6'h2e,6'h2d,6'h2c:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-5:0],{(9){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-5:0],{(9){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-5:0],{(9){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h2b,6'h2a,6'h29,6'h28:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-9:0],{(13){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-9:0],{(13){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-9:0],{(13){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h27,6'h26,6'h25,6'h24:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-13:0],{(17){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-13:0],{(17){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-13:0],{(17){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h23,6'h22,6'h21,6'h20:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-17:0],{(21){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-17:0],{(21){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-17:0],{(21){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h1f,6'h1e,6'h1d,6'h1c:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-21:0],{(25){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-21:0],{(25){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-21:0],{(25){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h1b,6'h1a,6'h19,6'h18:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-25:0],{(29){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-25:0],{(29){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-25:0],{(29){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h17,6'h16,6'h15,6'h14:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-29:0],{(33){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-29:0],{(33){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-29:0],{(33){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h13,6'h12,6'h11,6'h10:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-33:0],{(37){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-33:0],{(37){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-33:0],{(37){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h0f,6'h0e,6'h0d,6'h0c:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-37:0],{(41){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-37:0],{(41){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-37:0],{(41){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h0b,6'h0a,6'h09,6'h08:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-41:0],{(45){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-41:0],{(45){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-41:0],{(45){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h07,6'h06:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-45:0],{(49){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-45:0],{(49){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-45:0],{(49){1'b1}} }; //Precision_ctl_S+1
                       end
                     default:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64+3:0],{(1){1'b0}}}; //+3
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+3:0],{(1){1'b0}}}; //+3
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+3:0],{(1){1'b1}}}; //+3
                       end
                   endcase
+                end
                 end
             else if (FpFormat == fpnew_pkg_snax::FP16)
               // 2'b10:
                 begin
+                  always_comb
+                  begin
                   case (PRECISION_CTRL)
                     6'b00:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16+5:0],{(C_MANT_FP64-C_MANT_FP16-1){1'b0}} }; //+5
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+5
+                        // Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+5
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:1],1'b1}; //+4
                       end
                     6'h0a,6'h09,6'h08:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16+1:1],{(C_MANT_FP64-C_MANT_FP16+4){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+1:1],{(4){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+1:1],{(4){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h07,6'h06:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16+1-4:0],{(C_MANT_FP64-C_MANT_FP16+4+3){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+1-4:0],{(4+3){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+1-4:0],{(4+3){1'b1}} }; //Precision_ctl_S+1
                       end
                     default :
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16+5:0],{(C_MANT_FP64-C_MANT_FP16-1){1'b0}} }; //+5
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+5
+                        // Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+5
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:1],1'b1}; //+4
                       end
                   endcase
+                end
                 end
             else if (FpFormat == fpnew_pkg_snax::FP16ALT) 
               // 2'b11:
                 begin
+                  always_comb
+                  begin
 
                   case (PRECISION_CTRL)
                     6'b00:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16ALT+4:0],{(C_MANT_FP64-C_MANT_FP16ALT){1'b0}} }; //+4
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        // Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:1],1'b1}; //+4
                       end
                     6'h07,6'h06:
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16ALT:0],{(C_MANT_FP64-C_MANT_FP16ALT+4){1'b0}} }; //Precision_ctl_S+1
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS:0],{(4){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS:0],{(4){1'b1}} }; //Precision_ctl_S+1
                       end
                     default :
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16ALT+4:0],{(C_MANT_FP64-C_MANT_FP16ALT){1'b0}} }; //+4
-                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        // Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:1],1'b1}; //+4
                       end
                   endcase
                 end

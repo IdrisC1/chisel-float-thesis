@@ -49,14 +49,14 @@ module iteration_div_sqrt_mvp
 
    logic                        D_carry_D;
    // logic                        Sqrt_cin_D;
-   logic                        Cin_D;
+   // logic                        Cin_D;
 
    // assign D_DO[0]=~D_DI[0];
    // assign D_DO[1]=~(D_DI[1] ^ D_DI[0]);
    // assign D_carry_D=D_DI[1] | D_DI[0];
    // assign Sqrt_cin_D=Sqrt_enable_SI&&D_carry_D;
    // assign Cin_D=Div_enable_SI?1'b0:Sqrt_cin_D;
-   assign Cin_D=1'b0;
-   assign {Carry_out_DO,Sum_DO}=A_DI+B_DI+Cin_D;
+   // assign Cin_D=1'b0;
+   assign {Carry_out_DO,Sum_DO}=A_DI+B_DI;//+Cin_D;
 
 endmodule

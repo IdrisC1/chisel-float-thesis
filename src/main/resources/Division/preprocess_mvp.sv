@@ -366,8 +366,8 @@ module preprocess_mvp # (
          end
     end
    assign RM_dly_SO = RM_DP;
-
-   logic [5:0]                  Mant_leadingOne_a, Mant_leadingOne_b;
+   logic [$clog2(MAN_BITS+1)-1:0] Mant_leadingOne_a, Mant_leadingOne_b;
+  //  logic [5:0]                  Mant_leadingOne_a, Mant_leadingOne_b;
    logic                        Mant_zero_S_a,Mant_zero_S_b;
 
   // lzc #(

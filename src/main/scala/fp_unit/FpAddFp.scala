@@ -83,7 +83,7 @@ class FpAddFpSequential(
 
 object FpAddFpEmitter extends App {
   emitVerilog(
-    new FpAddFp(typeA = FP16, typeB = FP16, typeC = FP16),
+    new FpAddFp(typeA = FP64, typeB = FP64, typeC = FP64),
     Array("--target-dir", "generated/fp_unit")
   )
 }

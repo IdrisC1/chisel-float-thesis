@@ -56,7 +56,7 @@ class FpMulFp(val typeA: FpType, val typeB: FpType, val typeC: FpType, modulenam
 
 object FpMulFpEmitter extends App {
   emitVerilog(
-    new FpMulFp(typeA = BF16, typeB = BF16, typeC = BF16),
+    new FpMulFp(typeA = FP64, typeB = FP64, typeC = FP64),
     Array("--target-dir", "generated/fp_unit")
   )
 }

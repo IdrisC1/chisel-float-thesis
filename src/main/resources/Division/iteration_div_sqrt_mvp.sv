@@ -37,8 +37,8 @@ module iteration_div_sqrt_mvp
 
    input logic [WIDTH-1:0]      A_DI,
    input logic [WIDTH-1:0]      B_DI,
-   input logic                  Div_enable_SI,
-   input logic                  Div_start_dly_SI,
+   // input logic                  Div_enable_SI,
+   // input logic                  Div_start_dly_SI,
    // input logic                  Sqrt_enable_SI,
    // input logic [1:0]            D_DI,
 

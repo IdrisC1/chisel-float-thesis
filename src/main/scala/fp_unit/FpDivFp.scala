@@ -78,7 +78,7 @@ class FpDivFp(
     val io = IO(new Bundle {
         val in_a = Input(UInt(typeX.W))
         val in_b = Input(UInt(typeX.W))
-        val rnd_mode = Input(UInt(3.W))
+        // val rnd_mode = Input(UInt(3.W))
         val div_valid = Input(Bool())
 
         val out_done = Output(Bool())
@@ -125,4 +125,12 @@ class FpDivFp(
     io.out_done:= fpdivfp.io.unit_done
     // io.busy := fpdivfp.io.busy_o
  
+}
+
+
+object FpDivFpEmitter extends App {
+  emitVerilog(
+    new FpDivFp(typeX = FP64),
+    Array("--target-dir", "generated/fp_unit")
+  )
 }

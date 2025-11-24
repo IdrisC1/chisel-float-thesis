@@ -34,7 +34,7 @@ class FpDivFpTest extends AnyFlatSpec with Matchers with ChiselScalatestTester w
     dut.io.in_b.poke(bBits.U)
     // dut.io.operands_0(0).poke(aBits.U)
     // dut.io.operands_i(1).poke(bBits.U)
-    dut.io.rnd_mode.poke(0.U)
+    // dut.io.rnd_mode.poke(0.U)
     dut.io.div_valid.poke(true.B)
     
     // dut.io.out_ready.poke(true.B)
@@ -54,8 +54,8 @@ class FpDivFpTest extends AnyFlatSpec with Matchers with ChiselScalatestTester w
       println(f"Number of cycles: ${cycles}")
       // println(f"  a = 0x${aBits.toLong}%08X (${aBits.toLong.toBinaryString})")
       // println(f"  b = 0x${bBits.toLong}%08X (${bBits.toLong.toBinaryString})")
-      // println(f"  expected = 0x${expectedBits.toLong}%08X (${expectedBits.toLong.toBinaryString}), ${expected} ")
-      // println(f"  got      = 0x${got}%08X (${got.toLong.toBinaryString}), ${java.lang.Float.intBitsToFloat(got.toInt)}")
+      println(f"  expected = 0x${expectedBits.toLong}%08X (${expectedBits.toLong.toBinaryString}), ${expected} ")
+      println(f"  got      = 0x${got}%08X (${got.toLong.toBinaryString}), ${java.lang.Float.intBitsToFloat(got.toInt)}")
    
       got shouldBe expectedBits
        // Print results in readable format
@@ -76,7 +76,7 @@ class FpDivFpTest extends AnyFlatSpec with Matchers with ChiselScalatestTester w
   dut.io.in_b.poke(bBits.U)
   // dut.io.operands_0(0).poke(aBits.U)
   // dut.io.operands_i(1).poke(bBits.U)
-  dut.io.rnd_mode.poke(0.U)
+  // dut.io.rnd_mode.poke(0.U)
   dut.io.div_valid.poke(true.B)
   
   // dut.io.out_ready.poke(true.B)
@@ -96,8 +96,8 @@ class FpDivFpTest extends AnyFlatSpec with Matchers with ChiselScalatestTester w
     println(f"Number of cycles: ${cycles}")
     // println(f"  a = 0x${aBits.toLong}%08X (${aBits.toLong.toBinaryString}), ${a}")
     // println(f"  b = 0x${bBits.toLong}%08X (${bBits.toLong.toBinaryString}), ${b}")
-    // println(f"  expected = 0x${expectedBits.toLong}%08X (${expectedBits.toLong.toBinaryString}), ${expected} ")
-    // println(f"  got      = 0x${got}%08X (${got.toLong.toBinaryString}), ${uintToDouble(dut.typeX.asInstanceOf[FpType],got)}") 
+    println(f"  expected = 0x${expectedBits.toLong}%08X (${expectedBits.toLong.toBinaryString}), ${expected} ")
+    println(f"  got      = 0x${got}%08X (${got.toLong.toBinaryString}), ${uintToDouble(dut.typeX.asInstanceOf[FpType],got)}") 
   
     got shouldBe expectedBits
     }
@@ -133,39 +133,39 @@ class FpDivFpTest extends AnyFlatSpec with Matchers with ChiselScalatestTester w
     }
   }
 
-  // it should "perform FP32 DIV correctly" in {
-  //   runDivTests(new FpDivFp(typeX = FP32)) { dut =>
-  //   //   val rng = new scala.util.Random(42)
-  //     for (i <- 0 until testNum) {
-  //       val a = genRandomValue(FP32)
-  //       var b = genRandomValue(FP32)
-  //       if (b == 0.0f) b = 1.0f  // Avoid division by zero
-  //       // var a = 10.toFloat
-  //       // var b = 5.toFloat
-  //       testSingle(dut, i + 1, a, b)
-  //     }
-  //   }
-  // }
-
-  // it should "perform FP64 DIV correctly" in {
-  //   runDivTests(new FpDivFp(typeX = FP64)) { dut =>
-  //     // val rng = new scala.util.Random(17)
-  //     for (i <- 0 until (testNum / 4)) {
-  //       val a = genRandomValueDouble(FP64)
-  //       var b = genRandomValueDouble(FP64)
-  //       if (b == 0.0f) b = 1.0f
-  //       // var a = 1.toDouble
-  //       // var b = 0.toDouble
-  //       testSingleDouble(dut, i + 1, a, b)
-  //     }
-  //   }
-  // }
-
-  it should "handle special cases for FP32 division" in {
+  it should "perform FP32 DIV correctly" in {
     runDivTests(new FpDivFp(typeX = FP32)) { dut =>
-      testSpecialCases(dut)
+    //   val rng = new scala.util.Random(42)
+      for (i <- 0 until testNum) {
+        val a = genRandomValue(FP32)
+        var b = genRandomValue(FP32)
+        if (b == 0.0f) b = 1.0f  // Avoid division by zero
+        // var a = 10.toFloat
+        // var b = 5.toFloat
+        testSingle(dut, i + 1, a, b)
+      }
     }
   }
+
+  it should "perform FP64 DIV correctly" in {
+    runDivTests(new FpDivFp(typeX = FP64)) { dut =>
+      // val rng = new scala.util.Random(17)
+      for (i <- 0 until (testNum / 4)) {
+        val a = genRandomValueDouble(FP64)
+        var b = genRandomValueDouble(FP64)
+        if (b == 0.0f) b = 1.0f
+        // var a = 10.toDouble
+        // var b = 5.toDouble
+        testSingleDouble(dut, i + 1, a, b)
+      }
+    }
+  }
+
+  // it should "handle special cases for FP32 division" in {
+  //   runDivTests(new FpDivFp(typeX = FP32)) { dut =>
+  //     testSpecialCases(dut)
+  //   }
+  // }
 
 //   it should "perform FP16 DIV correctly" in {
 //     runDivTests(new DivSqrtFp(typeA = FP16, typeB = FP16, typeC = FP16), testNum, is64 = false) { dut =>

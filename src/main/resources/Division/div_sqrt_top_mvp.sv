@@ -39,7 +39,7 @@ module div_sqrt_top_mvp
     parameter fpnew_pkg_snax::fp_format_e FpFormat = fpnew_pkg_snax::FP32,
     parameter logic [C_PC-1:0] PRECISION_CTRL = 'h00, // Full precision as default
     parameter logic [C_RM-1:0] RM_SI = 3'h0,
-    parameter logic [1:0] Iteration_unit_num_S  = 2'b11, //Default 4 
+    parameter logic [2:0] Iteration_unit_num_S  = 3'b011, //Default 4 (encoded in 3 bits)
 
     parameter int unsigned EXP_BITS = fpnew_pkg_snax::exp_bits(FpFormat),
     parameter int unsigned MAN_BITS = fpnew_pkg_snax::man_bits(FpFormat),

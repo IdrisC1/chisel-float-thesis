@@ -3,7 +3,7 @@ module fp_div #(
   parameter logic [C_PC-1:0] PRECISION_CTRL = 'h00, // determine how precise/how many iterations needed // Full precision as default
   // Datatype
   parameter fpnew_pkg_snax::fp_format_e FpFormat   = fpnew_pkg_snax::fp_format_e'(2),  //FP16 
-  parameter logic [1:0] Iteration_unit_num_S  = 2'b11, //Default 4 
+  parameter logic [2:0] Iteration_unit_num_S  = 3'b011, //Default 4 
 
   // Round mode
   // parameter fpnew_pkg_snax::roundmode_e RM_SI = fpnew_pkg_snax::RNE

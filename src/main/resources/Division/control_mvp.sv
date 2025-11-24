@@ -44,7 +44,7 @@ module control_mvp # (
   parameter fpnew_pkg_snax::fp_format_e FpFormat = fpnew_pkg_snax::FP32,
   parameter logic [C_PC-1:0] PRECISION_CTRL = 'h00, // Full precision as default
    
-  parameter logic [1:0] Iteration_unit_num_S  = 2'b11, //Default 4 
+  parameter logic [2:0] Iteration_unit_num_S  = 3'b011, //Default 4 (encoded in 3 bits)
 
   parameter int unsigned EXP_BITS = fpnew_pkg_snax::exp_bits(FpFormat),
   parameter int unsigned MAN_BITS = fpnew_pkg_snax::man_bits(FpFormat),
@@ -102,7 +102,10 @@ module control_mvp # (
   //  logic  [C_MANT_FP64+1+4:0]                         Partial_remainder_DN,Partial_remainder_DP; //58bits,r=q+2
   //  logic  [C_MANT_FP64+4:0]                           Quotient_DP; //57bits
    logic  [MAN_BITS+1+4:0]                         Partial_remainder_DN,Partial_remainder_DP; //58bits,r=q+2
-   logic  [MAN_BITS+4:0]                           Quotient_DP; //57bits
+  //  logic  [MAN_BITS+4:0]                           Quotient_DP; //57bits
+  logic  [MAN_BITS+12:0]                           Quotient_DP; //65bits -> for 8 iteration units
+
+
    /////////////////////////////////////////////////////////////////////////////
    // Assign Inputs                                                          //
    /////////////////////////////////////////////////////////////////////////////
@@ -217,12 +220,13 @@ module control_mvp # (
     localparam logic Full_precision_SO =                 (PRECISION_CTRL==6'h00);
     localparam logic [5:0] State_Two_iteration_unit_S =  PRECISION_CTRL[C_PC-1:1];  //Two iteration units
     localparam logic [5:0] State_Four_iteration_unit_S = PRECISION_CTRL[C_PC-1:2];  //Four iteration units
+    localparam logic [5:0] State_Eight_iteration_unit_S = PRECISION_CTRL[C_PC-1:3]; //Eight iteration units
 
 
   logic [5:0]                                     State_ctl_S;
   generate
     //////////////////////one iteration unit, start///////////////////////////////////////
-    if (Iteration_unit_num_S == 2'b00) begin 
+    if (Iteration_unit_num_S == 3'b000) begin 
 
       if (FpFormat == fpnew_pkg_snax::FP32) begin 
         if (Full_precision_SO) begin
@@ -253,7 +257,7 @@ module control_mvp # (
          end
       end
 //////////////////////two iteration units, start///////////////////////////////////////
-    end else if (Iteration_unit_num_S == 2'b01) begin
+    end else if (Iteration_unit_num_S == 3'b001) begin
 
       if (FpFormat == fpnew_pkg_snax::FP32) begin 
         if (Full_precision_SO) begin
@@ -286,7 +290,7 @@ module control_mvp # (
 //////////////////////two iteration units, end    ///////////////////////////////////////
 
 //////////////////////three iteration units, start///////////////////////////////////////
-    end else if (Iteration_unit_num_S == 2'b10) begin
+    end else if (Iteration_unit_num_S == 3'b010) begin
       if (FpFormat == fpnew_pkg_snax::FP32) begin 
         case(PRECISION_CTRL)
           6'h00:
@@ -439,7 +443,7 @@ module control_mvp # (
 
 
 //////////////////////four iteration units, start///////////////////////////////////////
-    end else if (Iteration_unit_num_S == 2'b11) begin
+    end else if (Iteration_unit_num_S == 3'b011) begin
       
       if (FpFormat == fpnew_pkg_snax::FP32) begin 
         if (Full_precision_SO) begin
@@ -470,333 +474,41 @@ module control_mvp # (
          end
       end
     end 
+    ////////////////////eight iteration units, start///////////////////////////////////////
+    else if (Iteration_unit_num_S == 3'b111) begin
+      if (FpFormat == fpnew_pkg_snax::FP32) begin
+        if (Full_precision_SO) begin
+          assign State_ctl_S = 6'h03; // approx 24/8 = 3 cycles
+        end else begin
+          assign State_ctl_S = State_Eight_iteration_unit_S;
+        end
+      end
+      else if (FpFormat == fpnew_pkg_snax::FP64) begin
+        if (Full_precision_SO) begin
+          assign State_ctl_S = 6'h07; // approx 56/8 = 7 cycles
+        end else begin
+          assign State_ctl_S = State_Eight_iteration_unit_S;
+        end
+      end
+      else if (FpFormat == fpnew_pkg_snax::FP16) begin
+        if (Full_precision_SO) begin
+          assign State_ctl_S = 6'h02;
+        end else begin
+          assign State_ctl_S = State_Eight_iteration_unit_S;
+        end
+      end
+      else if (FpFormat == fpnew_pkg_snax::FP16ALT) begin
+        if (Full_precision_SO) begin
+          assign State_ctl_S = 6'h01;
+        end else begin
+          assign State_ctl_S = State_Eight_iteration_unit_S;
+        end
+      end
+    end
 endgenerate
 //////////////////////four iteration units, end///////////////////////////////////////
 
 
-
-
-//      always_comb
-//        begin
-//          case(Iteration_unit_num_S) // This is a parameter from defs_div_sqrt_mvp -> says how many iteration units you use 
-// //////////////////////one iteration unit, start///////////////////////////////////////
-//           2'b00:  //one iteration unit
-//              begin
-//                case(Format_sel_S)
-//                  2'b00: //FP32
-//                    begin
-//                      if(Full_precision_SO)
-//                        begin
-//                          State_ctl_S = 6'h1b;  //24+4 more iterations for rounding bits
-//                        end
-//                      else
-//                        begin
-//                          State_ctl_S = Precision_ctl_S;
-//                        end
-//                    end
-//                  2'b01: //FP64
-//                    begin
-//                      if(Full_precision_SO)
-//                        begin
-//                          State_ctl_S = 6'h38;  //53+4 more iterations for rounding bits
-//                        end
-//                      else
-//                        begin
-//                          State_ctl_S = Precision_ctl_S;
-//                        end
-//                    end
-//                  2'b10: //FP16
-//                    begin
-//                      if(Full_precision_SO)
-//                        begin
-//                          State_ctl_S = 6'h0e;  //11+4 more iterations for rounding bits
-//                        end
-//                      else
-//                        begin
-//                          State_ctl_S = Precision_ctl_S;
-//                        end
-//                    end
-//                  2'b11: //FP16ALT
-//                    begin
-//                      if(Full_precision_SO)
-//                        begin
-//                          State_ctl_S = 6'h0b;  //8+4 more iterations for rounding bits
-//                        end
-//                      else
-//                        begin
-//                          State_ctl_S = Precision_ctl_S;
-//                        end
-//                   end
-//                 endcase
-//               end
-// //////////////////////one iteration unit, end///////////////////////////////////////
-
-// //////////////////////two iteration units, start///////////////////////////////////////
-//            2'b01:  //two iteration units
-//              begin
-//                case(Format_sel_S)
-//                  2'b00: //FP32
-//                    begin
-//                      if(Full_precision_SO)
-//                        begin
-//                          State_ctl_S = 6'h0d;  //24+4 more iterations for rounding bits
-//                        end
-//                      else
-//                        begin
-//                          State_ctl_S = State_Two_iteration_unit_S;
-//                        end
-//                    end
-//                  2'b01: //FP64
-//                    begin
-//                      if(Full_precision_SO)
-//                        begin
-//                          State_ctl_S = 6'h1b;  //53+3 more iterations for rounding bits
-//                        end
-//                      else
-//                        begin
-//                          State_ctl_S = State_Two_iteration_unit_S;
-//                        end
-//                    end
-//                  2'b10: //FP16
-//                    begin
-//                      if(Full_precision_SO)
-//                        begin
-//                          State_ctl_S = 6'h06;  //11+3 more iterations for rounding bits
-//                        end
-//                      else
-//                        begin
-//                          State_ctl_S = State_Two_iteration_unit_S;
-//                        end
-//                    end
-//                  2'b11: //FP16ALT
-//                    begin
-//                      if(Full_precision_SO)
-//                        begin
-//                          State_ctl_S = 6'h05;  //8+4 more iterations for rounding bits
-//                        end
-//                      else
-//                        begin
-//                          State_ctl_S = State_Two_iteration_unit_S;
-//                        end
-//                   end
-//                 endcase
-//               end
-// //////////////////////two iteration units, end///////////////////////////////////////
-
-// //////////////////////three iteration units, start///////////////////////////////////////
-//            2'b10:  //three iteration units
-//              begin
-//                case(Format_sel_S)
-//                  2'b00: //FP32
-//                    begin
-//                      case(Precision_ctl_S)
-//                        6'h00:
-//                          begin
-//                            State_ctl_S = 6'h08;  //24+3 more iterations for rounding bits
-//                          end
-//                        6'h06,6'h07,6'h08:
-//                          begin
-//                            State_ctl_S = 6'h02;
-//                          end
-//                        6'h09,6'h0a,6'h0b:
-//                          begin
-//                            State_ctl_S = 6'h03;
-//                          end
-//                        6'h0c,6'h0d,6'h0e:
-//                          begin
-//                            State_ctl_S = 6'h04;
-//                          end
-//                        6'h0f,6'h10,6'h11:
-//                          begin
-//                            State_ctl_S = 6'h05;
-//                          end
-//                        6'h12,6'h13,6'h14:
-//                          begin
-//                            State_ctl_S = 6'h06;
-//                          end
-//                        6'h15,6'h16,6'h17:
-//                          begin
-//                            State_ctl_S = 6'h07;
-//                          end
-//                        default:
-//                          begin
-//                            State_ctl_S = 6'h08;  //24+3 more iterations for rounding bits
-//                          end
-//                      endcase
-//                    end
-//                  2'b01: //FP64
-//                    begin
-//                      case(Precision_ctl_S)
-//                        6'h00:
-//                          begin
-//                            State_ctl_S = 6'h12;  //53+4 more iterations for rounding bits
-//                          end
-//                        6'h06,6'h07,6'h08:
-//                          begin
-//                            State_ctl_S = 6'h02;
-//                          end
-//                        6'h09,6'h0a,6'h0b:
-//                          begin
-//                            State_ctl_S = 6'h03;
-//                          end
-//                        6'h0c,6'h0d,6'h0e:
-//                          begin
-//                            State_ctl_S = 6'h04;
-//                          end
-//                        6'h0f,6'h10,6'h11:
-//                          begin
-//                            State_ctl_S = 6'h05;
-//                          end
-//                        6'h12,6'h13,6'h14:
-//                          begin
-//                            State_ctl_S = 6'h06;
-//                          end
-//                        6'h15,6'h16,6'h17:
-//                          begin
-//                            State_ctl_S = 6'h07;
-//                          end
-//                        6'h18,6'h19,6'h1a:
-//                          begin
-//                            State_ctl_S = 6'h08;
-//                          end
-//                        6'h1b,6'h1c,6'h1d:
-//                          begin
-//                            State_ctl_S = 6'h09;
-//                          end
-//                        6'h1e,6'h1f,6'h20:
-//                          begin
-//                            State_ctl_S = 6'h0a;
-//                          end
-//                        6'h21,6'h22,6'h23:
-//                          begin
-//                            State_ctl_S = 6'h0b;
-//                          end
-//                        6'h24,6'h25,6'h26:
-//                          begin
-//                            State_ctl_S = 6'h0c;
-//                          end
-//                        6'h27,6'h28,6'h29:
-//                          begin
-//                            State_ctl_S = 6'h0d;
-//                          end
-//                        6'h2a,6'h2b,6'h2c:
-//                          begin
-//                            State_ctl_S = 6'h0e;
-//                          end
-//                        6'h2d,6'h2e,6'h2f:
-//                          begin
-//                            State_ctl_S = 6'h0f;
-//                          end
-//                        6'h30,6'h31,6'h32:
-//                          begin
-//                            State_ctl_S = 6'h10;
-//                          end
-//                        6'h33,6'h34,6'h35:
-//                          begin
-//                            State_ctl_S = 6'h11;
-//                          end
-//                        default:
-//                          begin
-//                            State_ctl_S = 6'h12;  //53+4 more iterations for rounding bits
-//                          end
-//                      endcase
-//                    end
-//                  2'b10: //FP16
-//                    begin
-//                      case(Precision_ctl_S)
-//                        6'h00:
-//                          begin
-//                            State_ctl_S = 6'h04;  //12+3 more iterations for rounding bits
-//                          end
-//                        6'h06,6'h07,6'h08:
-//                          begin
-//                            State_ctl_S = 6'h02;
-//                          end
-//                        6'h09,6'h0a,6'h0b:
-//                          begin
-//                            State_ctl_S = 6'h03;
-//                          end
-//                        default:
-//                          begin
-//                            State_ctl_S = 6'h04;  //12+3 more iterations for rounding bits
-//                          end
-//                      endcase
-//                    end
-//                  2'b11: //FP16ALT
-//                    begin
-//                      case(Precision_ctl_S)
-//                        6'h00:
-//                          begin
-//                            State_ctl_S = 6'h03;  //8+4 more iterations for rounding bits
-//                          end
-//                        6'h06,6'h07,6'h08:
-//                          begin
-//                            State_ctl_S = 6'h02;
-//                          end
-//                        default:
-//                          begin
-//                            State_ctl_S = 6'h03;  //8+4 more iterations for rounding bits
-//                          end
-//                      endcase
-//                   end
-//                 endcase
-//               end
-// //////////////////////three iteration units, end///////////////////////////////////////
-
-// //////////////////////four iteration units, start///////////////////////////////////////
-//            2'b11:  //four iteration units
-//              begin
-//                case(Format_sel_S)
-//                  2'b00: //FP32
-//                    begin
-//                      if(Full_precision_SO)
-//                        begin
-//                          State_ctl_S = 6'h06;  //24+4 more iterations for rounding bits
-//                        end
-//                      else
-//                        begin
-//                          State_ctl_S = State_Four_iteration_unit_S;
-//                        end
-//                    end
-//                  2'b01: //FP64
-//                    begin
-//                      if(Full_precision_SO)
-//                        begin
-//                          State_ctl_S = 6'h0d;  //53+3 more iterations for rounding bits
-//                        end
-//                      else
-//                        begin
-//                          State_ctl_S = State_Four_iteration_unit_S;
-//                        end
-//                    end
-//                  2'b10: //FP16
-//                    begin
-//                      if(Full_precision_SO)
-//                        begin
-//                          State_ctl_S = 6'h03;  //11+4 more iterations for rounding bits
-//                        end
-//                      else
-//                        begin
-//                          State_ctl_S = State_Four_iteration_unit_S;
-//                        end
-//                    end
-//                  2'b11: //FP16ALT
-//                    begin
-//                      if(Full_precision_SO)
-//                        begin
-//                          State_ctl_S = 6'h02;  //8+4 more iterations for rounding bits
-//                        end
-//                      else
-//                        begin
-//                          State_ctl_S = State_Four_iteration_unit_S;
-//                        end
-//                   end
-//                 endcase
-//               end
-// //////////////////////four iteration units, end///////////////////////////////////////
-
-//            endcase
-//         end
 
 
    /////////////////////////////////////////////////////////////////////////////
@@ -963,1597 +675,15 @@ endgenerate
      end
 
 
-  /////////////////////////////////////////////////////////////////////////////
-   // Declarations for square root when Iteration_unit_num_S = 2'b00, start  //
-   ////////////////////////////////////////////////////////////////////////////
+  logic  [MAN_BITS+1+4:0]                                      Iteration_cell_a_D [7:0];
+  logic  [MAN_BITS+1+4:0]                                      Iteration_cell_b_D [7:0];
+  logic  [MAN_BITS+1+4:0]                                      Iteration_cell_a_BMASK_D [7:0];
+  logic  [MAN_BITS+1+4:0]                                      Iteration_cell_b_BMASK_D [7:0];
+  logic                                                        Iteration_cell_carry_D [7:0];
+  logic  [MAN_BITS+1+4:0]                                      Iteration_cell_sum_D [7:0];
+  logic  [MAN_BITS+1+4:0]                                      Iteration_cell_sum_AMASK_D [7:0];
 
-  // logic                                    Qcnt_one_0;
-  // logic                                    Qcnt_one_1;
-  // logic [1:0]                              Qcnt_one_2;
-  // logic [2:0]                              Qcnt_one_3;
-  // logic [3:0]                              Qcnt_one_4;
-  // logic [4:0]                              Qcnt_one_5;
-  // logic [5:0]                              Qcnt_one_6;
-  // logic [6:0]                              Qcnt_one_7;
-  // logic [7:0]                              Qcnt_one_8;
-  // logic [8:0]                              Qcnt_one_9;
-  // logic [9:0]                              Qcnt_one_10;
-  // logic [10:0]                             Qcnt_one_11;
-  // logic [11:0]                             Qcnt_one_12;
-  // logic [12:0]                             Qcnt_one_13;
-  // logic [13:0]                             Qcnt_one_14;
-  // logic [14:0]                             Qcnt_one_15;
-  // logic [15:0]                             Qcnt_one_16;
-  // logic [16:0]                             Qcnt_one_17;
-  // logic [17:0]                             Qcnt_one_18;
-  // logic [18:0]                             Qcnt_one_19;
-  // logic [19:0]                             Qcnt_one_20;
-  // logic [20:0]                             Qcnt_one_21;
-  // logic [21:0]                             Qcnt_one_22;
-  // logic [22:0]                             Qcnt_one_23;
-  // logic [23:0]                             Qcnt_one_24;
-  // logic [24:0]                             Qcnt_one_25;
-  // logic [25:0]                             Qcnt_one_26;
-  // logic [26:0]                             Qcnt_one_27;
-  // logic [27:0]                             Qcnt_one_28;
-  // logic [28:0]                             Qcnt_one_29;
-  // logic [29:0]                             Qcnt_one_30;
-  // logic [30:0]                             Qcnt_one_31;
-  // logic [31:0]                             Qcnt_one_32;
-  // logic [32:0]                             Qcnt_one_33;
-  // logic [33:0]                             Qcnt_one_34;
-  // logic [34:0]                             Qcnt_one_35;
-  // logic [35:0]                             Qcnt_one_36;
-  // logic [36:0]                             Qcnt_one_37;
-  // logic [37:0]                             Qcnt_one_38;
-  // logic [38:0]                             Qcnt_one_39;
-  // logic [39:0]                             Qcnt_one_40;
-  // logic [40:0]                             Qcnt_one_41;
-  // logic [41:0]                             Qcnt_one_42;
-  // logic [42:0]                             Qcnt_one_43;
-  // logic [43:0]                             Qcnt_one_44;
-  // logic [44:0]                             Qcnt_one_45;
-  // logic [45:0]                             Qcnt_one_46;
-  // logic [46:0]                             Qcnt_one_47;
-  // logic [47:0]                             Qcnt_one_48;
-  // logic [48:0]                             Qcnt_one_49;
-  // logic [49:0]                             Qcnt_one_50;
-  // logic [50:0]                             Qcnt_one_51;
-  // logic [51:0]                             Qcnt_one_52;
-  // logic [52:0]                             Qcnt_one_53;
-  // logic [53:0]                             Qcnt_one_54;
-  // logic [54:0]                             Qcnt_one_55;
-  // logic [55:0]                             Qcnt_one_56;
-  // logic [56:0]                             Qcnt_one_57;
-  // logic [57:0]                             Qcnt_one_58;
-  // logic [58:0]                             Qcnt_one_59;
-  // logic [59:0]                             Qcnt_one_60;
 
-  /////////////////////////////////////////////////////////////////////////////
-   // Declarations for square root when Iteration_unit_num_S = 2'b00, end    //
-   ////////////////////////////////////////////////////////////////////////////
-
-
-
-  /////////////////////////////////////////////////////////////////////////////
-   // Declarations for square root when Iteration_unit_num_S = 2'b01, start  //
-   ////////////////////////////////////////////////////////////////////////////
-  // logic [1:0]                              Qcnt_two_0;
-  // logic [2:0]                              Qcnt_two_1;
-  // logic [4:0]                              Qcnt_two_2;
-  // logic [6:0]                              Qcnt_two_3;
-  // logic [8:0]                              Qcnt_two_4;
-  // logic [10:0]                             Qcnt_two_5;
-  // logic [12:0]                             Qcnt_two_6;
-  // logic [14:0]                             Qcnt_two_7;
-  // logic [16:0]                             Qcnt_two_8;
-  // logic [18:0]                             Qcnt_two_9;
-  // logic [20:0]                             Qcnt_two_10;
-  // logic [22:0]                             Qcnt_two_11;
-  // logic [24:0]                             Qcnt_two_12;
-  // logic [26:0]                             Qcnt_two_13;
-  // logic [28:0]                             Qcnt_two_14;
-  // logic [30:0]                             Qcnt_two_15;
-  // logic [32:0]                             Qcnt_two_16;
-  // logic [34:0]                             Qcnt_two_17;
-  // logic [36:0]                             Qcnt_two_18;
-  // logic [38:0]                             Qcnt_two_19;
-  // logic [40:0]                             Qcnt_two_20;
-  // logic [42:0]                             Qcnt_two_21;
-  // logic [44:0]                             Qcnt_two_22;
-  // logic [46:0]                             Qcnt_two_23;
-  // logic [48:0]                             Qcnt_two_24;
-  // logic [50:0]                             Qcnt_two_25;
-  // logic [52:0]                             Qcnt_two_26;
-  // logic [54:0]                             Qcnt_two_27;
-  // logic [56:0]                             Qcnt_two_28;
-  /////////////////////////////////////////////////////////////////////////////
-   // Declarations for square root when Iteration_unit_num_S = 2'b01, end    //
-   ////////////////////////////////////////////////////////////////////////////
-
-
-  /////////////////////////////////////////////////////////////////////////////
-   // Declarations for square root when Iteration_unit_num_S = 2'b10, start  //
-   ////////////////////////////////////////////////////////////////////////////
-  // logic [2:0]                              Qcnt_three_0;
-  // logic [4:0]                              Qcnt_three_1;
-  // logic [7:0]                              Qcnt_three_2;
-  // logic [10:0]                             Qcnt_three_3;
-  // logic [13:0]                             Qcnt_three_4;
-  // logic [16:0]                             Qcnt_three_5;
-  // logic [19:0]                             Qcnt_three_6;
-  // logic [22:0]                             Qcnt_three_7;
-  // logic [25:0]                             Qcnt_three_8;
-  // logic [28:0]                             Qcnt_three_9;
-  // logic [31:0]                             Qcnt_three_10;
-  // logic [34:0]                             Qcnt_three_11;
-  // logic [37:0]                             Qcnt_three_12;
-  // logic [40:0]                             Qcnt_three_13;
-  // logic [43:0]                             Qcnt_three_14;
-  // logic [46:0]                             Qcnt_three_15;
-  // logic [49:0]                             Qcnt_three_16;
-  // logic [52:0]                             Qcnt_three_17;
-  // logic [55:0]                             Qcnt_three_18;
-  // logic [58:0]                             Qcnt_three_19;
-  // logic [61:0]                             Qcnt_three_20;
-  /////////////////////////////////////////////////////////////////////////////
-   // Declarations for square root when Iteration_unit_num_S = 2'b10, end    //
-   ////////////////////////////////////////////////////////////////////////////
-
-
-  /////////////////////////////////////////////////////////////////////////////
-   // Declarations for square root when Iteration_unit_num_S = 2'b11, start  //
-   ////////////////////////////////////////////////////////////////////////////
-  // logic [3:0]                              Qcnt_four_0;
-  // logic [6:0]                              Qcnt_four_1;
-  // logic [10:0]                             Qcnt_four_2;
-  // logic [14:0]                             Qcnt_four_3;
-  // logic [18:0]                             Qcnt_four_4;
-  // logic [22:0]                             Qcnt_four_5;
-  // logic [26:0]                             Qcnt_four_6;
-  // logic [30:0]                             Qcnt_four_7;
-  // logic [34:0]                             Qcnt_four_8;
-  // logic [38:0]                             Qcnt_four_9;
-  // logic [42:0]                             Qcnt_four_10;
-  // logic [46:0]                             Qcnt_four_11;
-  // logic [50:0]                             Qcnt_four_12;
-  // logic [54:0]                             Qcnt_four_13;
-  // logic [58:0]                             Qcnt_four_14;
-
-  /////////////////////////////////////////////////////////////////////////////
-   // Declarations for square root when Iteration_unit_num_S = 2'b11, end    //
-   ////////////////////////////////////////////////////////////////////////////
-
-
-
-  //  logic [C_MANT_FP64+1+4:0]                                      Sqrt_R0,Sqrt_Q0,Q_sqrt0,Q_sqrt_com_0;
-  //  logic [C_MANT_FP64+1+4:0]                                      Sqrt_R1,Sqrt_Q1,Q_sqrt1,Q_sqrt_com_1;
-  //  logic [C_MANT_FP64+1+4:0]                                      Sqrt_R2,Sqrt_Q2,Q_sqrt2,Q_sqrt_com_2;
-  //  logic [C_MANT_FP64+1+4:0]                                      Sqrt_R3,Sqrt_Q3,Q_sqrt3,Q_sqrt_com_3,Sqrt_R4; //Sqrt_Q4;
-
-
-  //  logic [1:0]                                                    Sqrt_DI  [3:0];
-  //  logic [1:0]                                                    Sqrt_DO  [3:0];
-  //  logic                                                          Sqrt_carry_DO;
-
-
-  // logic  [C_MANT_FP64+1+4:0]                                      Iteration_cell_a_D [3:0];
-  // logic  [C_MANT_FP64+1+4:0]                                      Iteration_cell_b_D [3:0];
-  // logic  [C_MANT_FP64+1+4:0]                                      Iteration_cell_a_BMASK_D [3:0];
-  // logic  [C_MANT_FP64+1+4:0]                                      Iteration_cell_b_BMASK_D [3:0];
-  // logic                                                           Iteration_cell_carry_D [3:0];
-  // logic  [C_MANT_FP64+1+4:0]                                      Iteration_cell_sum_D [3:0];
-  // logic  [C_MANT_FP64+1+4:0]                                      Iteration_cell_sum_AMASK_D [3:0];
-
-
-  logic  [MAN_BITS+1+4:0]                                      Iteration_cell_a_D [3:0];
-  logic  [MAN_BITS+1+4:0]                                      Iteration_cell_b_D [3:0];
-  logic  [MAN_BITS+1+4:0]                                      Iteration_cell_a_BMASK_D [3:0];
-  logic  [MAN_BITS+1+4:0]                                      Iteration_cell_b_BMASK_D [3:0];
-  logic                                                        Iteration_cell_carry_D [3:0];
-  logic  [MAN_BITS+1+4:0]                                      Iteration_cell_sum_D [3:0];
-  logic  [MAN_BITS+1+4:0]                                      Iteration_cell_sum_AMASK_D [3:0];
-
-
-  // logic [3:0]                                                     Sqrt_quotinent_S;
-
-
-  //  always_comb
-  //   begin  //
-  //     case (Format_sel_S)
-  //       2'b00:
-  //         begin
-  //           Sqrt_quotinent_S = {(~Iteration_cell_sum_AMASK_D[0][C_MANT_FP32+5]),(~Iteration_cell_sum_AMASK_D[1][C_MANT_FP32+5]),(~Iteration_cell_sum_AMASK_D[2][C_MANT_FP32+5]),(~Iteration_cell_sum_AMASK_D[3][C_MANT_FP32+5])};
-  //           Q_sqrt_com_0 ={ {(C_MANT_FP64-C_MANT_FP32){1'b0}},~Q_sqrt0[C_MANT_FP32+5:0] };
-  //           Q_sqrt_com_1 ={ {(C_MANT_FP64-C_MANT_FP32){1'b0}},~Q_sqrt1[C_MANT_FP32+5:0] };
-  //           Q_sqrt_com_2 ={ {(C_MANT_FP64-C_MANT_FP32){1'b0}},~Q_sqrt2[C_MANT_FP32+5:0] };
-  //           Q_sqrt_com_3 ={ {(C_MANT_FP64-C_MANT_FP32){1'b0}},~Q_sqrt3[C_MANT_FP32+5:0] };
-  //         end
-  //       2'b01:
-  //         begin
-  //           Sqrt_quotinent_S = {Iteration_cell_carry_D[0],Iteration_cell_carry_D[1],Iteration_cell_carry_D[2],Iteration_cell_carry_D[3]};
-  //           Q_sqrt_com_0=~Q_sqrt0;
-  //           Q_sqrt_com_1=~Q_sqrt1;
-  //           Q_sqrt_com_2=~Q_sqrt2;
-  //           Q_sqrt_com_3=~Q_sqrt3;
-  //         end
-  //       2'b10:
-  //         begin
-  //           Sqrt_quotinent_S = {(~Iteration_cell_sum_AMASK_D[0][C_MANT_FP16+5]),(~Iteration_cell_sum_AMASK_D[1][C_MANT_FP16+5]),(~Iteration_cell_sum_AMASK_D[2][C_MANT_FP16+5]),(~Iteration_cell_sum_AMASK_D[3][C_MANT_FP16+5])};
-  //           Q_sqrt_com_0 ={ {(C_MANT_FP64-C_MANT_FP16){1'b0}},~Q_sqrt0[C_MANT_FP16+5:0] };
-  //           Q_sqrt_com_1 ={ {(C_MANT_FP64-C_MANT_FP16){1'b0}},~Q_sqrt1[C_MANT_FP16+5:0] };
-  //           Q_sqrt_com_2 ={ {(C_MANT_FP64-C_MANT_FP16){1'b0}},~Q_sqrt2[C_MANT_FP16+5:0] };
-  //           Q_sqrt_com_3 ={ {(C_MANT_FP64-C_MANT_FP16){1'b0}},~Q_sqrt3[C_MANT_FP16+5:0] };
-  //         end
-  //       2'b11:
-  //         begin
-  //           Sqrt_quotinent_S = {(~Iteration_cell_sum_AMASK_D[0][C_MANT_FP16ALT+5]),(~Iteration_cell_sum_AMASK_D[1][C_MANT_FP16ALT+5]),(~Iteration_cell_sum_AMASK_D[2][C_MANT_FP16ALT+5]),(~Iteration_cell_sum_AMASK_D[3][C_MANT_FP16ALT+5])};
-  //           Q_sqrt_com_0 ={ {(C_MANT_FP64-C_MANT_FP16ALT){1'b0}},~Q_sqrt0[C_MANT_FP16ALT+5:0] };
-  //           Q_sqrt_com_1 ={ {(C_MANT_FP64-C_MANT_FP16ALT){1'b0}},~Q_sqrt1[C_MANT_FP16ALT+5:0] };
-  //           Q_sqrt_com_2 ={ {(C_MANT_FP64-C_MANT_FP16ALT){1'b0}},~Q_sqrt2[C_MANT_FP16ALT+5:0] };
-  //           Q_sqrt_com_3 ={ {(C_MANT_FP64-C_MANT_FP16ALT){1'b0}},~Q_sqrt3[C_MANT_FP16ALT+5:0] };
-  //         end
-  //       endcase
-  //   end
-
-
-
-  // assign  Qcnt_one_0=    {1'b0};  //qk for each feedback
-  // assign  Qcnt_one_1=    {Quotient_DP[0]};
-  // assign  Qcnt_one_2=    {Quotient_DP[1:0]};
-  // assign  Qcnt_one_3=    {Quotient_DP[2:0]};
-  // assign  Qcnt_one_4=    {Quotient_DP[3:0]};
-  // assign  Qcnt_one_5=    {Quotient_DP[4:0]};
-  // assign  Qcnt_one_6=    {Quotient_DP[5:0]};
-  // assign  Qcnt_one_7=    {Quotient_DP[6:0]};
-  // assign  Qcnt_one_8=    {Quotient_DP[7:0]};
-  // assign  Qcnt_one_9=    {Quotient_DP[8:0]};
-  // assign  Qcnt_one_10=    {Quotient_DP[9:0]};
-  // assign  Qcnt_one_11=    {Quotient_DP[10:0]};
-  // assign  Qcnt_one_12=    {Quotient_DP[11:0]};
-  // assign  Qcnt_one_13=    {Quotient_DP[12:0]};
-  // assign  Qcnt_one_14=    {Quotient_DP[13:0]};
-  // assign  Qcnt_one_15=    {Quotient_DP[14:0]};
-  // assign  Qcnt_one_16=    {Quotient_DP[15:0]};
-  // assign  Qcnt_one_17=    {Quotient_DP[16:0]};
-  // assign  Qcnt_one_18=    {Quotient_DP[17:0]};
-  // assign  Qcnt_one_19=    {Quotient_DP[18:0]};
-  // assign  Qcnt_one_20=    {Quotient_DP[19:0]};
-  // assign  Qcnt_one_21=    {Quotient_DP[20:0]};
-  // assign  Qcnt_one_22=    {Quotient_DP[21:0]};
-  // assign  Qcnt_one_23=    {Quotient_DP[22:0]};
-  // assign  Qcnt_one_24=    {Quotient_DP[23:0]};
-  // assign  Qcnt_one_25=    {Quotient_DP[24:0]};
-  // assign  Qcnt_one_26=    {Quotient_DP[25:0]};
-  // assign  Qcnt_one_27=    {Quotient_DP[26:0]};
-  // assign  Qcnt_one_28=    {Quotient_DP[27:0]};
-  // assign  Qcnt_one_29=    {Quotient_DP[28:0]};
-  // assign  Qcnt_one_30=    {Quotient_DP[29:0]};
-  // assign  Qcnt_one_31=    {Quotient_DP[30:0]};
-  // assign  Qcnt_one_32=    {Quotient_DP[31:0]};
-  // assign  Qcnt_one_33=    {Quotient_DP[32:0]};
-  // assign  Qcnt_one_34=    {Quotient_DP[33:0]};
-  // assign  Qcnt_one_35=    {Quotient_DP[34:0]};
-  // assign  Qcnt_one_36=    {Quotient_DP[35:0]};
-  // assign  Qcnt_one_37=    {Quotient_DP[36:0]};
-  // assign  Qcnt_one_38=    {Quotient_DP[37:0]};
-  // assign  Qcnt_one_39=    {Quotient_DP[38:0]};
-  // assign  Qcnt_one_40=    {Quotient_DP[39:0]};
-  // assign  Qcnt_one_41=    {Quotient_DP[40:0]};
-  // assign  Qcnt_one_42=    {Quotient_DP[41:0]};
-  // assign  Qcnt_one_43=    {Quotient_DP[42:0]};
-  // assign  Qcnt_one_44=    {Quotient_DP[43:0]};
-  // assign  Qcnt_one_45=    {Quotient_DP[44:0]};
-  // assign  Qcnt_one_46=    {Quotient_DP[45:0]};
-  // assign  Qcnt_one_47=    {Quotient_DP[46:0]};
-  // assign  Qcnt_one_48=    {Quotient_DP[47:0]};
-  // assign  Qcnt_one_49=    {Quotient_DP[48:0]};
-  // assign  Qcnt_one_50=    {Quotient_DP[49:0]};
-  // assign  Qcnt_one_51=    {Quotient_DP[50:0]};
-  // assign  Qcnt_one_52=    {Quotient_DP[51:0]};
-  // assign  Qcnt_one_53=    {Quotient_DP[52:0]};
-  // assign  Qcnt_one_54=    {Quotient_DP[53:0]};
-  // assign  Qcnt_one_55=    {Quotient_DP[54:0]};
-  // assign  Qcnt_one_56=    {Quotient_DP[55:0]};
-  // assign  Qcnt_one_57=    {Quotient_DP[56:0]};
-
-
-  // assign  Qcnt_two_0 =    {1'b0,            Sqrt_quotinent_S[3]};  //qk for each feedback
-  // assign  Qcnt_two_1 =    {Quotient_DP[1:0],Sqrt_quotinent_S[3]};
-  // assign  Qcnt_two_2 =    {Quotient_DP[3:0],Sqrt_quotinent_S[3]};
-  // assign  Qcnt_two_3 =    {Quotient_DP[5:0],Sqrt_quotinent_S[3]};
-  // assign  Qcnt_two_4 =    {Quotient_DP[7:0],Sqrt_quotinent_S[3]};
-  // assign  Qcnt_two_5 =    {Quotient_DP[9:0],Sqrt_quotinent_S[3]};
-  // assign  Qcnt_two_6 =    {Quotient_DP[11:0],Sqrt_quotinent_S[3]};
-  // assign  Qcnt_two_7 =    {Quotient_DP[13:0],Sqrt_quotinent_S[3]};
-  // assign  Qcnt_two_8 =    {Quotient_DP[15:0],Sqrt_quotinent_S[3]};
-  // assign  Qcnt_two_9 =    {Quotient_DP[17:0],Sqrt_quotinent_S[3]};
-  // assign  Qcnt_two_10 =    {Quotient_DP[19:0],Sqrt_quotinent_S[3]};
-  // assign  Qcnt_two_11 =    {Quotient_DP[21:0],Sqrt_quotinent_S[3]};
-  // assign  Qcnt_two_12 =    {Quotient_DP[23:0],Sqrt_quotinent_S[3]};
-  // assign  Qcnt_two_13 =    {Quotient_DP[25:0],Sqrt_quotinent_S[3]};
-  // assign  Qcnt_two_14 =    {Quotient_DP[27:0],Sqrt_quotinent_S[3]};
-  // assign  Qcnt_two_15 =    {Quotient_DP[29:0],Sqrt_quotinent_S[3]};
-  // assign  Qcnt_two_16 =    {Quotient_DP[31:0],Sqrt_quotinent_S[3]};
-  // assign  Qcnt_two_17 =    {Quotient_DP[33:0],Sqrt_quotinent_S[3]};
-  // assign  Qcnt_two_18 =    {Quotient_DP[35:0],Sqrt_quotinent_S[3]};
-  // assign  Qcnt_two_19 =    {Quotient_DP[37:0],Sqrt_quotinent_S[3]};
-  // assign  Qcnt_two_20 =    {Quotient_DP[39:0],Sqrt_quotinent_S[3]};
-  // assign  Qcnt_two_21 =    {Quotient_DP[41:0],Sqrt_quotinent_S[3]};
-  // assign  Qcnt_two_22 =    {Quotient_DP[43:0],Sqrt_quotinent_S[3]};
-  // assign  Qcnt_two_23 =    {Quotient_DP[45:0],Sqrt_quotinent_S[3]};
-  // assign  Qcnt_two_24 =    {Quotient_DP[47:0],Sqrt_quotinent_S[3]};
-  // assign  Qcnt_two_25 =    {Quotient_DP[49:0],Sqrt_quotinent_S[3]};
-  // assign  Qcnt_two_26 =    {Quotient_DP[51:0],Sqrt_quotinent_S[3]};
-  // assign  Qcnt_two_27 =    {Quotient_DP[53:0],Sqrt_quotinent_S[3]};
-  // assign  Qcnt_two_28 =    {Quotient_DP[55:0],Sqrt_quotinent_S[3]};
-
-
-  // assign  Qcnt_three_0 =    {1'b0,            Sqrt_quotinent_S[3],Sqrt_quotinent_S[2]};  //qk for each feedback
-  // assign  Qcnt_three_1 =    {Quotient_DP[2:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2]};
-  // assign  Qcnt_three_2 =    {Quotient_DP[5:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2]};
-  // assign  Qcnt_three_3 =    {Quotient_DP[8:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2]};
-  // assign  Qcnt_three_4 =    {Quotient_DP[11:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2]};
-  // assign  Qcnt_three_5 =    {Quotient_DP[14:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2]};
-  // assign  Qcnt_three_6 =    {Quotient_DP[17:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2]};
-  // assign  Qcnt_three_7 =    {Quotient_DP[20:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2]};
-  // assign  Qcnt_three_8 =    {Quotient_DP[23:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2]};
-  // assign  Qcnt_three_9 =    {Quotient_DP[26:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2]};
-  // assign  Qcnt_three_10 =    {Quotient_DP[29:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2]};
-  // assign  Qcnt_three_11 =    {Quotient_DP[32:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2]};
-  // assign  Qcnt_three_12 =    {Quotient_DP[35:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2]};
-  // assign  Qcnt_three_13 =    {Quotient_DP[38:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2]};
-  // assign  Qcnt_three_14 =    {Quotient_DP[41:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2]};
-  // assign  Qcnt_three_15 =    {Quotient_DP[44:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2]};
-  // assign  Qcnt_three_16 =    {Quotient_DP[47:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2]};
-  // assign  Qcnt_three_17 =    {Quotient_DP[50:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2]};
-  // assign  Qcnt_three_18 =    {Quotient_DP[53:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2]};
-  // assign  Qcnt_three_19 =    {Quotient_DP[56:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2]};
-
-
-  // assign      Qcnt_four_0 =    {1'b0,            Sqrt_quotinent_S[3],Sqrt_quotinent_S[2],Sqrt_quotinent_S[1]};
-  // assign      Qcnt_four_1 =    {Quotient_DP[3:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2],Sqrt_quotinent_S[1]};
-  // assign      Qcnt_four_2 =    {Quotient_DP[7:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2],Sqrt_quotinent_S[1]};
-  // assign      Qcnt_four_3 =    {Quotient_DP[11:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2],Sqrt_quotinent_S[1]};
-  // assign      Qcnt_four_4 =    {Quotient_DP[15:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2],Sqrt_quotinent_S[1]};
-  // assign      Qcnt_four_5 =    {Quotient_DP[19:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2],Sqrt_quotinent_S[1]};
-  // assign      Qcnt_four_6 =    {Quotient_DP[23:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2],Sqrt_quotinent_S[1]};
-  // assign      Qcnt_four_7 =    {Quotient_DP[27:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2],Sqrt_quotinent_S[1]};
-  // assign      Qcnt_four_8 =    {Quotient_DP[31:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2],Sqrt_quotinent_S[1]};
-  // assign      Qcnt_four_9 =    {Quotient_DP[35:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2],Sqrt_quotinent_S[1]};
-  // assign      Qcnt_four_10 =    {Quotient_DP[39:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2],Sqrt_quotinent_S[1]};
-  // assign      Qcnt_four_11 =    {Quotient_DP[43:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2],Sqrt_quotinent_S[1]};
-  // assign      Qcnt_four_12 =    {Quotient_DP[47:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2],Sqrt_quotinent_S[1]};
-  // assign      Qcnt_four_13 =    {Quotient_DP[51:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2],Sqrt_quotinent_S[1]};
-  // assign      Qcnt_four_14 =    {Quotient_DP[55:0],Sqrt_quotinent_S[3],Sqrt_quotinent_S[2],Sqrt_quotinent_S[1]};
-
-
-
-
-  // always_comb begin  // the intermediate operands for sqrt
-
-  // case(Iteration_unit_num_S)
-  //   2'b00:
-  //     begin
-
-  // /////////////////////////////////////////////////////////////////////////////
-  //  // Operands for square root when Iteration_unit_num_S = 2'b00, start       //
-  //  /////////////////////////////////////////////////////////////////////////////
-
-
-
-
-  //       case(Crtl_cnt_S)
-
-  //         6'b000000:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64+1:C_MANT_FP64];
-  //             Q_sqrt0={{(C_MANT_FP64+5){1'b0}},Qcnt_one_0};
-  //             Sqrt_Q0=Q_sqrt_com_0;
-  //           end
-  //         6'b000001:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-1:C_MANT_FP64-2];
-  //             Q_sqrt0={{(C_MANT_FP64+5){1'b0}},Qcnt_one_1};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b000010:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-3:C_MANT_FP64-4];
-  //             Q_sqrt0={{(C_MANT_FP64+4){1'b0}},Qcnt_one_2};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b000011:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-5:C_MANT_FP64-6];
-  //             Q_sqrt0={{(C_MANT_FP64+3){1'b0}},Qcnt_one_3};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b000100:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-7:C_MANT_FP64-8];
-  //             Q_sqrt0={{(C_MANT_FP64+2){1'b0}},Qcnt_one_4};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b000101:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-9:C_MANT_FP64-10];
-  //             Q_sqrt0={{(C_MANT_FP64+1){1'b0}},Qcnt_one_5};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b000110:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-11:C_MANT_FP64-12];
-  //             Q_sqrt0={{(C_MANT_FP64){1'b0}},Qcnt_one_6};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b000111:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-13:C_MANT_FP64-14];
-  //             Q_sqrt0={{(C_MANT_FP64-1){1'b0}},Qcnt_one_7};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b001000:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-15:C_MANT_FP64-16];
-  //             Q_sqrt0={{(C_MANT_FP64-2){1'b0}},Qcnt_one_8};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b001001:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-17:C_MANT_FP64-18];
-  //             Q_sqrt0={{(C_MANT_FP64-3){1'b0}},Qcnt_one_9};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b001010:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-19:C_MANT_FP64-20];
-  //             Q_sqrt0={{(C_MANT_FP64-4){1'b0}},Qcnt_one_10};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b001011:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-21:C_MANT_FP64-22];
-  //             Q_sqrt0={{(C_MANT_FP64-5){1'b0}},Qcnt_one_11};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b001100:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-23:C_MANT_FP64-24];
-  //             Q_sqrt0={{(C_MANT_FP64-6){1'b0}},Qcnt_one_12};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b001101:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-25:C_MANT_FP64-26];
-  //             Q_sqrt0={{(C_MANT_FP64-7){1'b0}},Qcnt_one_13};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b001110:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-27:C_MANT_FP64-28];
-  //             Q_sqrt0={{(C_MANT_FP64-8){1'b0}},Qcnt_one_14};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b001111:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-29:C_MANT_FP64-30];
-  //             Q_sqrt0={{(C_MANT_FP64-9){1'b0}},Qcnt_one_15};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b010000:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-31:C_MANT_FP64-32];
-  //             Q_sqrt0={{(C_MANT_FP64-10){1'b0}},Qcnt_one_16};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b010001:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-33:C_MANT_FP64-34];
-  //             Q_sqrt0={{(C_MANT_FP64-11){1'b0}},Qcnt_one_17};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b010010:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-35:C_MANT_FP64-36];
-  //             Q_sqrt0={{(C_MANT_FP64-12){1'b0}},Qcnt_one_18};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b010011:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-37:C_MANT_FP64-38];
-  //             Q_sqrt0={{(C_MANT_FP64-13){1'b0}},Qcnt_one_19};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b010100:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-39:C_MANT_FP64-40];
-  //             Q_sqrt0={{(C_MANT_FP64-14){1'b0}},Qcnt_one_20};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b010101:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-41:C_MANT_FP64-42];
-  //             Q_sqrt0={{(C_MANT_FP64-15){1'b0}},Qcnt_one_21};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b010110:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-43:C_MANT_FP64-44];
-  //             Q_sqrt0={{(C_MANT_FP64-16){1'b0}},Qcnt_one_22};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b010111:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-45:C_MANT_FP64-46];
-  //             Q_sqrt0={{(C_MANT_FP64-17){1'b0}},Qcnt_one_23};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b011000:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-47:C_MANT_FP64-48];
-  //             Q_sqrt0={{(C_MANT_FP64-18){1'b0}},Qcnt_one_24};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b011001:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-49:C_MANT_FP64-50];
-  //             Q_sqrt0={{(C_MANT_FP64-19){1'b0}},Qcnt_one_25};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b011010:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-51:C_MANT_FP64-52];
-  //             Q_sqrt0={{(C_MANT_FP64-20){1'b0}},Qcnt_one_26};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b011011:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-21){1'b0}},Qcnt_one_27};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b011100:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-22){1'b0}},Qcnt_one_28};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b011101:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-23){1'b0}},Qcnt_one_29};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b011110:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-24){1'b0}},Qcnt_one_30};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b011111:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-25){1'b0}},Qcnt_one_31};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b100000:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-26){1'b0}},Qcnt_one_32};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b100001:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-27){1'b0}},Qcnt_one_33};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b100010:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-28){1'b0}},Qcnt_one_34};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b100011:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-29){1'b0}},Qcnt_one_35};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b100100:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-30){1'b0}},Qcnt_one_36};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b100101:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-31){1'b0}},Qcnt_one_37};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b100110:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-32){1'b0}},Qcnt_one_38};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b100111:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-33){1'b0}},Qcnt_one_39};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b101000:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-34){1'b0}},Qcnt_one_40};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b101001:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-35){1'b0}},Qcnt_one_41};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b101010:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-36){1'b0}},Qcnt_one_42};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b101011:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-37){1'b0}},Qcnt_one_43};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b101100:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-38){1'b0}},Qcnt_one_44};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b101101:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-39){1'b0}},Qcnt_one_45};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b101110:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-40){1'b0}},Qcnt_one_46};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b101111:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-41){1'b0}},Qcnt_one_47};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b110000:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-42){1'b0}},Qcnt_one_48};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b110001:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-43){1'b0}},Qcnt_one_49};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b110010:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-44){1'b0}},Qcnt_one_50};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b110011:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-45){1'b0}},Qcnt_one_51};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b110100:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-46){1'b0}},Qcnt_one_52};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b110101:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-47){1'b0}},Qcnt_one_53};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b110110:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-48){1'b0}},Qcnt_one_54};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b110111:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-49){1'b0}},Qcnt_one_55};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-  //         6'b111000:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-50){1'b0}},Qcnt_one_56};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //           end
-
-  //         default:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0='0;
-  //             Sqrt_Q0='0;
-  //           end
-  //       endcase
-  //     end
-
-
-   /////////////////////////////////////////////////////////////////////////////
-   // Operands for square root when Iteration_unit_num_S = 2'b00, end         //
-   /////////////////////////////////////////////////////////////////////////////
-
-
-  //   2'b01:
-  //     begin
-  //  /////////////////////////////////////////////////////////////////////////////
-  //  // Operands for square root when Iteration_unit_num_S = 2'b01, start       //
-  //  /////////////////////////////////////////////////////////////////////////////
-  //       case(Crtl_cnt_S)
-
-  //         6'b000000:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64+1:C_MANT_FP64];
-  //             Q_sqrt0={{(C_MANT_FP64+5){1'b0}},Qcnt_two_0[1]};
-  //             Sqrt_Q0=Q_sqrt_com_0;
-  //             Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-1:C_MANT_FP64-2];
-  //             Q_sqrt1={{(C_MANT_FP64+4){1'b0}},Qcnt_two_0[1:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //         6'b000001:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-3:C_MANT_FP64-4];
-  //             Q_sqrt0={{(C_MANT_FP64+4){1'b0}},Qcnt_two_1[2:1]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-5:C_MANT_FP64-6];
-  //             Q_sqrt1={{(C_MANT_FP64+3){1'b0}},Qcnt_two_1[2:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //         6'b000010:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-7:C_MANT_FP64-8];
-  //             Q_sqrt0={{(C_MANT_FP64+2){1'b0}},Qcnt_two_2[4:1]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-9:C_MANT_FP64-10];
-  //             Q_sqrt1={{(C_MANT_FP64+1){1'b0}},Qcnt_two_2[4:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //         6'b000011:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-11:C_MANT_FP64-12];
-  //             Q_sqrt0={{(C_MANT_FP64){1'b0}},Qcnt_two_3[6:1]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-13:C_MANT_FP64-14];
-  //             Q_sqrt1={{(C_MANT_FP64-1){1'b0}},Qcnt_two_3[6:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //         6'b000100:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-15:C_MANT_FP64-16];
-  //             Q_sqrt0={{(C_MANT_FP64-2){1'b0}},Qcnt_two_4[8:1]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-17:C_MANT_FP64-18];
-  //             Q_sqrt1={{(C_MANT_FP64-3){1'b0}},Qcnt_two_4[8:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //           6'b000101:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-19:C_MANT_FP64-20];
-  //             Q_sqrt0={{(C_MANT_FP64-4){1'b0}},Qcnt_two_5[10:1]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-21:C_MANT_FP64-22];
-  //             Q_sqrt1={{(C_MANT_FP64-5){1'b0}},Qcnt_two_5[10:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //         6'b000110:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-23:C_MANT_FP64-24];
-  //             Q_sqrt0={{(C_MANT_FP64-6){1'b0}},Qcnt_two_6[12:1]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-25:C_MANT_FP64-26];
-  //             Q_sqrt1={{(C_MANT_FP64-7){1'b0}},Qcnt_two_6[12:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //         6'b000111:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-27:C_MANT_FP64-28];
-  //             Q_sqrt0={{(C_MANT_FP64-8){1'b0}},Qcnt_two_7[14:1]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-29:C_MANT_FP64-30];
-  //             Q_sqrt1={{(C_MANT_FP64-9){1'b0}},Qcnt_two_7[14:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //         6'b001000:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-31:C_MANT_FP64-32];
-  //             Q_sqrt0={{(C_MANT_FP64-10){1'b0}},Qcnt_two_8[16:1]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-33:C_MANT_FP64-34];
-  //             Q_sqrt1={{(C_MANT_FP64-11){1'b0}},Qcnt_two_8[16:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //         6'b001001:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-35:C_MANT_FP64-36];
-  //             Q_sqrt0={{(C_MANT_FP64-12){1'b0}},Qcnt_two_9[18:1]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-37:C_MANT_FP64-38];
-  //             Q_sqrt1={{(C_MANT_FP64-13){1'b0}},Qcnt_two_9[18:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //         6'b001010:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-39:C_MANT_FP64-40];
-  //             Q_sqrt0={{(C_MANT_FP64-14){1'b0}},Qcnt_two_10[20:1]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-41:C_MANT_FP64-42];
-  //             Q_sqrt1={{(C_MANT_FP64-15){1'b0}},Qcnt_two_10[20:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //         6'b001011:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-43:C_MANT_FP64-44];
-  //             Q_sqrt0={{(C_MANT_FP64-16){1'b0}},Qcnt_two_11[22:1]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-45:C_MANT_FP64-46];
-  //             Q_sqrt1={{(C_MANT_FP64-17){1'b0}},Qcnt_two_11[22:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //         6'b001100:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-47:C_MANT_FP64-48];
-  //             Q_sqrt0={{(C_MANT_FP64-18){1'b0}},Qcnt_two_12[24:1]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-49:C_MANT_FP64-50];
-  //             Q_sqrt1={{(C_MANT_FP64-19){1'b0}},Qcnt_two_12[24:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //         6'b001101:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-51:C_MANT_FP64-52];
-  //             Q_sqrt0={{(C_MANT_FP64-20){1'b0}},Qcnt_two_13[26:1]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=2'b00;
-  //             Q_sqrt1={{(C_MANT_FP64-21){1'b0}},Qcnt_two_13[26:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //         6'b001110:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-22){1'b0}},Qcnt_two_14[28:1]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=2'b00;
-  //             Q_sqrt1={{(C_MANT_FP64-23){1'b0}},Qcnt_two_14[28:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //         6'b001111:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-24){1'b0}},Qcnt_two_15[30:1]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=2'b00;
-  //             Q_sqrt1={{(C_MANT_FP64-25){1'b0}},Qcnt_two_15[30:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //         6'b010000:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-26){1'b0}},Qcnt_two_16[32:1]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=2'b00;
-  //             Q_sqrt1={{(C_MANT_FP64-27){1'b0}},Qcnt_two_16[32:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //         6'b010001:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-28){1'b0}},Qcnt_two_17[34:1]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=2'b00;
-  //             Q_sqrt1={{(C_MANT_FP64-29){1'b0}},Qcnt_two_17[34:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //         6'b010010:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-30){1'b0}},Qcnt_two_18[36:1]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=2'b00;
-  //             Q_sqrt1={{(C_MANT_FP64-31){1'b0}},Qcnt_two_18[36:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //         6'b010011:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-32){1'b0}},Qcnt_two_19[38:1]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=2'b00;
-  //             Q_sqrt1={{(C_MANT_FP64-33){1'b0}},Qcnt_two_19[38:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //         6'b010100:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-34){1'b0}},Qcnt_two_20[40:1]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=2'b00;
-  //             Q_sqrt1={{(C_MANT_FP64-35){1'b0}},Qcnt_two_20[40:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //         6'b010101:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-36){1'b0}},Qcnt_two_21[42:1]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=2'b00;
-  //             Q_sqrt1={{(C_MANT_FP64-37){1'b0}},Qcnt_two_21[42:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //         6'b010110:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-38){1'b0}},Qcnt_two_22[44:1]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=2'b00;
-  //             Q_sqrt1={{(C_MANT_FP64-39){1'b0}},Qcnt_two_22[44:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //         6'b010111:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-40){1'b0}},Qcnt_two_23[46:1]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=2'b00;
-  //             Q_sqrt1={{(C_MANT_FP64-41){1'b0}},Qcnt_two_23[46:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //         6'b011000:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-42){1'b0}},Qcnt_two_24[48:1]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=2'b00;
-  //             Q_sqrt1={{(C_MANT_FP64-43){1'b0}},Qcnt_two_24[48:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //         6'b011001:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-44){1'b0}},Qcnt_two_25[50:1]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=2'b00;
-  //             Q_sqrt1={{(C_MANT_FP64-45){1'b0}},Qcnt_two_25[50:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //         6'b011010:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-46){1'b0}},Qcnt_two_26[52:1]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=2'b00;
-  //             Q_sqrt1={{(C_MANT_FP64-47){1'b0}},Qcnt_two_26[52:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //         6'b011011:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-48){1'b0}},Qcnt_two_27[54:1]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=2'b00;
-  //             Q_sqrt1={{(C_MANT_FP64-49){1'b0}},Qcnt_two_27[54:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //         6'b011100:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-50){1'b0}},Qcnt_two_28[56:1]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=2'b00;
-  //             Q_sqrt1={{(C_MANT_FP64-51){1'b0}},Qcnt_two_28[56:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //         default:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64+1:C_MANT_FP64];
-  //             Q_sqrt0={{(C_MANT_FP64+5){1'b0}},Qcnt_two_0[1]};
-  //             Sqrt_Q0=Q_sqrt_com_0;
-  //             Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-1:C_MANT_FP64-2];
-  //             Q_sqrt1={{(C_MANT_FP64+4){1'b0}},Qcnt_two_0[1:0]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //           end
-
-  //       endcase
-  //     end
-
-   /////////////////////////////////////////////////////////////////////////////
-   // Operands for square root when Iteration_unit_num_S = 2'b01, end       //
-   /////////////////////////////////////////////////////////////////////////////
-
-
-  //   2'b10:
-  //     begin
-  //  /////////////////////////////////////////////////////////////////////////////
-  //  // Operands for square root when Iteration_unit_num_S = 2'b10, start       //
-  //  /////////////////////////////////////////////////////////////////////////////
-
-  //       case(Crtl_cnt_S)
-  //         6'b000000:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64+1:C_MANT_FP64];
-  //             Q_sqrt0={{(C_MANT_FP64+5){1'b0}},Qcnt_three_0[2]};
-  //             Sqrt_Q0=Q_sqrt_com_0;
-  //             Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-1:C_MANT_FP64-2];
-  //             Q_sqrt1={{(C_MANT_FP64+4){1'b0}},Qcnt_three_0[2:1]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //             Sqrt_DI[2]=Mant_D_sqrt_Norm[C_MANT_FP64-3:C_MANT_FP64-4];
-  //             Q_sqrt2={{(C_MANT_FP64+3){1'b0}},Qcnt_three_0[2:0]};
-  //             Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-  //           end
-
-  //         6'b000001:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-5:C_MANT_FP64-6];
-  //             Q_sqrt0={{(C_MANT_FP64+2){1'b0}},Qcnt_three_1[4:2]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-7:C_MANT_FP64-8];
-  //             Q_sqrt1={{(C_MANT_FP64+1){1'b0}},Qcnt_three_1[4:1]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //             Sqrt_DI[2]=Mant_D_sqrt_Norm[C_MANT_FP64-9:C_MANT_FP64-10];
-  //             Q_sqrt2={{(C_MANT_FP64){1'b0}},Qcnt_three_1[4:0]};
-  //             Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-  //           end
-
-  //         6'b000010:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-11:C_MANT_FP64-12];
-  //             Q_sqrt0={{(C_MANT_FP64-1){1'b0}},Qcnt_three_2[7:2]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-13:C_MANT_FP64-14];
-  //             Q_sqrt1={{(C_MANT_FP64-2){1'b0}},Qcnt_three_2[7:1]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //             Sqrt_DI[2]=Mant_D_sqrt_Norm[C_MANT_FP64-15:C_MANT_FP64-16];
-  //             Q_sqrt2={{(C_MANT_FP64-3){1'b0}},Qcnt_three_2[7:0]};
-  //             Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-  //           end
-
-  //         6'b000011:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-17:C_MANT_FP64-18];
-  //             Q_sqrt0={{(C_MANT_FP64-4){1'b0}},Qcnt_three_3[10:2]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-19:C_MANT_FP64-20];
-  //             Q_sqrt1={{(C_MANT_FP64-5){1'b0}},Qcnt_three_3[10:1]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //             Sqrt_DI[2]=Mant_D_sqrt_Norm[C_MANT_FP64-21:C_MANT_FP64-22];
-  //             Q_sqrt2={{(C_MANT_FP64-6){1'b0}},Qcnt_three_3[10:0]};
-  //             Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-  //           end
-
-  //         6'b000100:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-23:C_MANT_FP64-24];
-  //             Q_sqrt0={{(C_MANT_FP64-7){1'b0}},Qcnt_three_4[13:2]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-25:C_MANT_FP64-26];
-  //             Q_sqrt1={{(C_MANT_FP64-8){1'b0}},Qcnt_three_4[13:1]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //             Sqrt_DI[2]=Mant_D_sqrt_Norm[C_MANT_FP64-27:C_MANT_FP64-28];
-  //             Q_sqrt2={{(C_MANT_FP64-9){1'b0}},Qcnt_three_4[13:0]};
-  //             Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-  //           end
-
-  //         6'b000101:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-29:C_MANT_FP64-30];
-  //             Q_sqrt0={{(C_MANT_FP64-10){1'b0}},Qcnt_three_5[16:2]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-31:C_MANT_FP64-32];
-  //             Q_sqrt1={{(C_MANT_FP64-11){1'b0}},Qcnt_three_5[16:1]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //             Sqrt_DI[2]=Mant_D_sqrt_Norm[C_MANT_FP64-33:C_MANT_FP64-34];
-  //             Q_sqrt2={{(C_MANT_FP64-12){1'b0}},Qcnt_three_5[16:0]};
-  //             Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-  //           end
-
-  //         6'b000110:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-35:C_MANT_FP64-36];
-  //             Q_sqrt0={{(C_MANT_FP64-13){1'b0}},Qcnt_three_6[19:2]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-37:C_MANT_FP64-38];
-  //             Q_sqrt1={{(C_MANT_FP64-14){1'b0}},Qcnt_three_6[19:1]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //             Sqrt_DI[2]=Mant_D_sqrt_Norm[C_MANT_FP64-39:C_MANT_FP64-40];
-  //             Q_sqrt2={{(C_MANT_FP64-15){1'b0}},Qcnt_three_6[19:0]};
-  //             Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-  //           end
-
-  //         6'b000111:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-41:C_MANT_FP64-42];
-  //             Q_sqrt0={{(C_MANT_FP64-16){1'b0}},Qcnt_three_7[22:2]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-43:C_MANT_FP64-44];
-  //             Q_sqrt1={{(C_MANT_FP64-17){1'b0}},Qcnt_three_7[22:1]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //             Sqrt_DI[2]=Mant_D_sqrt_Norm[C_MANT_FP64-45:C_MANT_FP64-46];
-  //             Q_sqrt2={{(C_MANT_FP64-18){1'b0}},Qcnt_three_7[22:0]};
-  //             Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-  //           end
-
-  //         6'b001000:
-  //           begin
-  //             Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-47:C_MANT_FP64-48];
-  //             Q_sqrt0={{(C_MANT_FP64-19){1'b0}},Qcnt_three_8[25:2]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-49:C_MANT_FP64-50];
-  //             Q_sqrt1={{(C_MANT_FP64-20){1'b0}},Qcnt_three_8[25:1]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //             Sqrt_DI[2]=Mant_D_sqrt_Norm[C_MANT_FP64-51:C_MANT_FP64-52];
-  //             Q_sqrt2={{(C_MANT_FP64-21){1'b0}},Qcnt_three_8[25:0]};
-  //             Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-  //           end
-
-  //         6'b001001:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-22){1'b0}},Qcnt_three_9[28:2]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=2'b00;
-  //             Q_sqrt1={{(C_MANT_FP64-23){1'b0}},Qcnt_three_9[28:1]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //             Sqrt_DI[2]=2'b00;
-  //             Q_sqrt2={{(C_MANT_FP64-24){1'b0}},Qcnt_three_9[28:0]};
-  //             Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-  //           end
-
-  //         6'b001010:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-25){1'b0}},Qcnt_three_10[31:2]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=2'b00;
-  //             Q_sqrt1={{(C_MANT_FP64-26){1'b0}},Qcnt_three_10[31:1]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //             Sqrt_DI[2]=2'b00;
-  //             Q_sqrt2={{(C_MANT_FP64-27){1'b0}},Qcnt_three_10[31:0]};
-  //             Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-  //           end
-
-  //         6'b001011:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-28){1'b0}},Qcnt_three_11[34:2]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=2'b00;
-  //             Q_sqrt1={{(C_MANT_FP64-29){1'b0}},Qcnt_three_11[34:1]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //             Sqrt_DI[2]=2'b00;
-  //             Q_sqrt2={{(C_MANT_FP64-30){1'b0}},Qcnt_three_11[34:0]};
-  //             Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-  //           end
-
-  //         6'b001100:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-31){1'b0}},Qcnt_three_12[37:2]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=2'b00;
-  //             Q_sqrt1={{(C_MANT_FP64-32){1'b0}},Qcnt_three_12[37:1]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //             Sqrt_DI[2]=2'b00;
-  //             Q_sqrt2={{(C_MANT_FP64-33){1'b0}},Qcnt_three_12[37:0]};
-  //             Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-  //           end
-
-  //         6'b001101:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-34){1'b0}},Qcnt_three_13[40:2]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=2'b00;
-  //             Q_sqrt1={{(C_MANT_FP64-35){1'b0}},Qcnt_three_13[40:1]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //             Sqrt_DI[2]=2'b00;
-  //             Q_sqrt2={{(C_MANT_FP64-36){1'b0}},Qcnt_three_13[40:0]};
-  //             Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-  //           end
-
-  //         6'b001110:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-37){1'b0}},Qcnt_three_14[43:2]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=2'b00;
-  //             Q_sqrt1={{(C_MANT_FP64-38){1'b0}},Qcnt_three_14[43:1]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //             Sqrt_DI[2]=2'b00;
-  //             Q_sqrt2={{(C_MANT_FP64-39){1'b0}},Qcnt_three_14[43:0]};
-  //             Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-  //           end
-
-  //         6'b001111:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-40){1'b0}},Qcnt_three_15[46:2]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=2'b00;
-  //             Q_sqrt1={{(C_MANT_FP64-41){1'b0}},Qcnt_three_15[46:1]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //             Sqrt_DI[2]=2'b00;
-  //             Q_sqrt2={{(C_MANT_FP64-42){1'b0}},Qcnt_three_15[46:0]};
-  //             Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-  //           end
-
-  //         6'b010000:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-43){1'b0}},Qcnt_three_16[49:2]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=2'b00;
-  //             Q_sqrt1={{(C_MANT_FP64-44){1'b0}},Qcnt_three_16[49:1]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //             Sqrt_DI[2]=2'b00;
-  //             Q_sqrt2={{(C_MANT_FP64-45){1'b0}},Qcnt_three_16[49:0]};
-  //             Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-  //           end
-
-  //         6'b010001:
-  //           begin
-  //             Sqrt_DI[0]=2'b00;
-  //             Q_sqrt0={{(C_MANT_FP64-46){1'b0}},Qcnt_three_17[52:2]};
-  //             Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-  //             Sqrt_DI[1]=2'b00;
-  //             Q_sqrt1={{(C_MANT_FP64-47){1'b0}},Qcnt_three_17[52:1]};
-  //             Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-  //             Sqrt_DI[2]=2'b00;
-  //             Q_sqrt2={{(C_MANT_FP64-48){1'b0}},Qcnt_three_17[52:0]};
-      //         Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-      //       end
-
-      //     6'b010010:
-      //       begin
-      //         Sqrt_DI[0]=2'b00;
-      //         Q_sqrt0={{(C_MANT_FP64-49){1'b0}},Qcnt_three_18[55:2]};
-      //         Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-      //         Sqrt_DI[1]=2'b00;
-      //         Q_sqrt1={{(C_MANT_FP64-50){1'b0}},Qcnt_three_18[55:1]};
-      //         Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-      //         Sqrt_DI[2]=2'b00;
-      //         Q_sqrt2={{(C_MANT_FP64-51){1'b0}},Qcnt_three_18[55:0]};
-      //         Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-      //       end
-
-      //     default :
-      //         begin
-      //         Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64+1:C_MANT_FP64];
-      //         Q_sqrt0={{(C_MANT_FP64+5){1'b0}},Qcnt_three_0[2]};
-      //         Sqrt_Q0=Q_sqrt_com_0;
-      //         Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-1:C_MANT_FP64-2];
-      //         Q_sqrt1={{(C_MANT_FP64+4){1'b0}},Qcnt_three_0[2:1]};
-      //         Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-      //         Sqrt_DI[2]=Mant_D_sqrt_Norm[C_MANT_FP64-3:C_MANT_FP64-4];
-      //         Q_sqrt2={{(C_MANT_FP64+3){1'b0}},Qcnt_three_0[2:0]};
-      //         Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-      //       end
-      //   endcase
-
-      // end
-   /////////////////////////////////////////////////////////////////////////////
-   // Operands for square root when Iteration_unit_num_S = 2'b10, end       //
-   /////////////////////////////////////////////////////////////////////////////
-
-
-//     2'b11:
-//       begin
-//    /////////////////////////////////////////////////////////////////////////////
-//    // Operands for square root when Iteration_unit_num_S = 2'b11, start       //
-//    /////////////////////////////////////////////////////////////////////////////
-
-//               case(Crtl_cnt_S)
-
-//                 6'b000000:
-//                   begin
-//                     Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64+1:C_MANT_FP64];
-//                     Q_sqrt0={{(C_MANT_FP64+5){1'b0}},Qcnt_four_0[3]};
-//                     Sqrt_Q0=Q_sqrt_com_0;
-//                     Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-1:C_MANT_FP64-2];
-//                     Q_sqrt1={{(C_MANT_FP64+4){1'b0}},Qcnt_four_0[3:2]};
-//                     Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-//                     Sqrt_DI[2]=Mant_D_sqrt_Norm[C_MANT_FP64-3:C_MANT_FP64-4];
-//                     Q_sqrt2={{(C_MANT_FP64+3){1'b0}},Qcnt_four_0[3:1]};
-//                     Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-//                     Sqrt_DI[3]=Mant_D_sqrt_Norm[C_MANT_FP64-5:C_MANT_FP64-6];
-//                     Q_sqrt3={{(C_MANT_FP64+2){1'b0}},Qcnt_four_0[3:0]};
-//                     Sqrt_Q3=Sqrt_quotinent_S[1]?Q_sqrt_com_3:Q_sqrt3;
-//                   end
-
-//                 6'b000001:
-//                   begin
-//                     Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-7:C_MANT_FP64-8];
-//                     Q_sqrt0={{(C_MANT_FP64+1){1'b0}},Qcnt_four_1[6:3]};
-//                     Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-//                     Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-9:C_MANT_FP64-10];
-//                     Q_sqrt1={{(C_MANT_FP64){1'b0}},Qcnt_four_1[6:2]};
-//                     Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-//                     Sqrt_DI[2]=Mant_D_sqrt_Norm[C_MANT_FP64-11:C_MANT_FP64-12];
-//                     Q_sqrt2={{(C_MANT_FP64-1){1'b0}},Qcnt_four_1[6:1]};
-//                     Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-//                     Sqrt_DI[3]=Mant_D_sqrt_Norm[C_MANT_FP64-13:C_MANT_FP64-14];
-//                     Q_sqrt3={{(C_MANT_FP64-2){1'b0}},Qcnt_four_1[6:0]};
-//                     Sqrt_Q3=Sqrt_quotinent_S[1]?Q_sqrt_com_3:Q_sqrt3;
-//                   end
-
-//                 6'b000010:
-//                   begin
-//                     Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-15:C_MANT_FP64-16];
-//                     Q_sqrt0={{(C_MANT_FP64-3){1'b0}},Qcnt_four_2[10:3]};
-//                     Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-//                     Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-17:C_MANT_FP64-18];
-//                     Q_sqrt1={{(C_MANT_FP64-4){1'b0}},Qcnt_four_2[10:2]};
-//                     Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-//                     Sqrt_DI[2]=Mant_D_sqrt_Norm[C_MANT_FP64-19:C_MANT_FP64-20];
-//                     Q_sqrt2={{(C_MANT_FP64-5){1'b0}},Qcnt_four_2[10:1]};
-//                     Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-//                     Sqrt_DI[3]=Mant_D_sqrt_Norm[C_MANT_FP64-21:C_MANT_FP64-22];
-//                     Q_sqrt3={{(C_MANT_FP64-6){1'b0}},Qcnt_four_2[10:0]};
-//                     Sqrt_Q3=Sqrt_quotinent_S[1]?Q_sqrt_com_3:Q_sqrt3;
-//                   end
-
-//                 6'b000011:
-//                   begin
-//                     Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-23:C_MANT_FP64-24];
-//                     Q_sqrt0={{(C_MANT_FP64-7){1'b0}},Qcnt_four_3[14:3]};
-//                     Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-//                     Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-25:C_MANT_FP64-26];
-//                     Q_sqrt1={{(C_MANT_FP64-8){1'b0}},Qcnt_four_3[14:2]};
-//                     Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-//                     Sqrt_DI[2]=Mant_D_sqrt_Norm[C_MANT_FP64-27:C_MANT_FP64-28];
-//                     Q_sqrt2={{(C_MANT_FP64-9){1'b0}},Qcnt_four_3[14:1]};
-//                     Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-//                     Sqrt_DI[3]=Mant_D_sqrt_Norm[C_MANT_FP64-29:C_MANT_FP64-30];
-//                     Q_sqrt3={{(C_MANT_FP64-10){1'b0}},Qcnt_four_3[14:0]};
-//                     Sqrt_Q3=Sqrt_quotinent_S[1]?Q_sqrt_com_3:Q_sqrt3;
-//                   end
-
-//                 6'b000100:
-//                   begin
-//                     Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-31:C_MANT_FP64-32];
-//                     Q_sqrt0={{(C_MANT_FP64-11){1'b0}},Qcnt_four_4[18:3]};
-//                     Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-//                     Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-33:C_MANT_FP64-34];
-//                     Q_sqrt1={{(C_MANT_FP64-12){1'b0}},Qcnt_four_4[18:2]};
-//                     Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-//                     Sqrt_DI[2]=Mant_D_sqrt_Norm[C_MANT_FP64-35:C_MANT_FP64-36];
-//                     Q_sqrt2={{(C_MANT_FP64-13){1'b0}},Qcnt_four_4[18:1]};
-//                     Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-//                     Sqrt_DI[3]=Mant_D_sqrt_Norm[C_MANT_FP64-37:C_MANT_FP64-38];
-//                     Q_sqrt3={{(C_MANT_FP64-14){1'b0}},Qcnt_four_4[18:0]};
-//                     Sqrt_Q3=Sqrt_quotinent_S[1]?Q_sqrt_com_3:Q_sqrt3;
-//                   end
-
-//                 6'b000101:
-//                   begin
-//                     Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-39:C_MANT_FP64-40];
-//                     Q_sqrt0={{(C_MANT_FP64-15){1'b0}},Qcnt_four_5[22:3]};
-//                     Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-//                     Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-41:C_MANT_FP64-42];
-//                     Q_sqrt1={{(C_MANT_FP64-16){1'b0}},Qcnt_four_5[22:2]};
-//                     Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-//                     Sqrt_DI[2]=Mant_D_sqrt_Norm[C_MANT_FP64-43:C_MANT_FP64-44];
-//                     Q_sqrt2={{(C_MANT_FP64-17){1'b0}},Qcnt_four_5[22:1]};
-//                     Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-//                     Sqrt_DI[3]=Mant_D_sqrt_Norm[C_MANT_FP64-45:C_MANT_FP64-46];
-//                     Q_sqrt3={{(C_MANT_FP64-18){1'b0}},Qcnt_four_5[22:0]};
-//                     Sqrt_Q3=Sqrt_quotinent_S[1]?Q_sqrt_com_3:Q_sqrt3;
-//                   end
-
-//                 6'b000110:
-//                   begin
-//                     Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64-47:C_MANT_FP64-48];
-//                     Q_sqrt0={{(C_MANT_FP64-19){1'b0}},Qcnt_four_6[26:3]};
-//                     Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-//                     Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-49:C_MANT_FP64-50];
-//                     Q_sqrt1={{(C_MANT_FP64-20){1'b0}},Qcnt_four_6[26:2]};
-//                     Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-//                     Sqrt_DI[2]=Mant_D_sqrt_Norm[C_MANT_FP64-51:C_MANT_FP64-52];
-//                     Q_sqrt2={{(C_MANT_FP64-21){1'b0}},Qcnt_four_6[26:1]};
-//                     Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-//                     Sqrt_DI[3]=2'b00;
-//                     Q_sqrt3={{(C_MANT_FP64-22){1'b0}},Qcnt_four_6[26:0]};
-//                     Sqrt_Q3=Sqrt_quotinent_S[1]?Q_sqrt_com_3:Q_sqrt3;
-//                   end
-
-//                 6'b000111:
-//                   begin
-//                     Sqrt_DI[0]=2'b00;
-//                     Q_sqrt0={{(C_MANT_FP64-23){1'b0}},Qcnt_four_7[30:3]};
-//                     Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-//                     Sqrt_DI[1]=2'b00;
-//                     Q_sqrt1={{(C_MANT_FP64-24){1'b0}},Qcnt_four_7[30:2]};
-//                     Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-//                     Sqrt_DI[2]=2'b00;
-//                     Q_sqrt2={{(C_MANT_FP64-25){1'b0}},Qcnt_four_7[30:1]};
-//                     Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-//                     Sqrt_DI[3]=2'b00;
-//                     Q_sqrt3={{(C_MANT_FP64-26){1'b0}},Qcnt_four_7[30:0]};
-//                     Sqrt_Q3=Sqrt_quotinent_S[1]?Q_sqrt_com_3:Q_sqrt3;
-//                   end
-
-//                 6'b001000:
-//                   begin
-//                     Sqrt_DI[0]=2'b00;
-//                     Q_sqrt0={{(C_MANT_FP64-27){1'b0}},Qcnt_four_8[34:3]};
-//                     Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-//                     Sqrt_DI[1]=2'b00;
-//                     Q_sqrt1={{(C_MANT_FP64-28){1'b0}},Qcnt_four_8[34:2]};
-//                     Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-//                     Sqrt_DI[2]=2'b00;
-//                     Q_sqrt2={{(C_MANT_FP64-29){1'b0}},Qcnt_four_8[34:1]};
-//                     Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-//                     Sqrt_DI[3]=2'b00;
-//                     Q_sqrt3={{(C_MANT_FP64-30){1'b0}},Qcnt_four_8[34:0]};
-//                     Sqrt_Q3=Sqrt_quotinent_S[1]?Q_sqrt_com_3:Q_sqrt3;
-//                   end
-
-//                 6'b001001:
-//                   begin
-//                     Sqrt_DI[0]=2'b00;
-//                     Q_sqrt0={{(C_MANT_FP64-31){1'b0}},Qcnt_four_9[38:3]};
-//                     Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-//                     Sqrt_DI[1]=2'b00;
-//                     Q_sqrt1={{(C_MANT_FP64-32){1'b0}},Qcnt_four_9[38:2]};
-//                     Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-//                     Sqrt_DI[2]=2'b00;
-//                     Q_sqrt2={{(C_MANT_FP64-33){1'b0}},Qcnt_four_9[38:1]};
-//                     Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-//                     Sqrt_DI[3]=2'b00;
-//                     Q_sqrt3={{(C_MANT_FP64-34){1'b0}},Qcnt_four_9[38:0]};
-//                     Sqrt_Q3=Sqrt_quotinent_S[1]?Q_sqrt_com_3:Q_sqrt3;
-//                   end
-
-//                 6'b001010:
-//                   begin
-//                     Sqrt_DI[0]=2'b00;
-//                     Q_sqrt0={{(C_MANT_FP64-35){1'b0}},Qcnt_four_10[42:3]};
-//                     Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-//                     Sqrt_DI[1]=2'b00;
-//                     Q_sqrt1={{(C_MANT_FP64-36){1'b0}},Qcnt_four_10[42:2]};
-//                     Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-//                     Sqrt_DI[2]=2'b00;
-//                     Q_sqrt2={{(C_MANT_FP64-37){1'b0}},Qcnt_four_10[42:1]};
-//                     Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-//                     Sqrt_DI[3]=2'b00;
-//                     Q_sqrt3={{(C_MANT_FP64-38){1'b0}},Qcnt_four_10[42:0]};
-//                     Sqrt_Q3=Sqrt_quotinent_S[1]?Q_sqrt_com_3:Q_sqrt3;
-//                   end
-
-//                 6'b001011:
-//                   begin
-//                     Sqrt_DI[0]=2'b00;
-//                     Q_sqrt0={{(C_MANT_FP64-39){1'b0}},Qcnt_four_11[46:3]};
-//                     Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-//                     Sqrt_DI[1]=2'b00;
-//                     Q_sqrt1={{(C_MANT_FP64-40){1'b0}},Qcnt_four_11[46:2]};
-//                     Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-//                     Sqrt_DI[2]=2'b00;
-//                     Q_sqrt2={{(C_MANT_FP64-41){1'b0}},Qcnt_four_11[46:1]};
-//                     Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-//                     Sqrt_DI[3]=2'b00;
-//                     Q_sqrt3={{(C_MANT_FP64-42){1'b0}},Qcnt_four_11[46:0]};
-//                     Sqrt_Q3=Sqrt_quotinent_S[1]?Q_sqrt_com_3:Q_sqrt3;
-//                   end
-
-//                 6'b001100:
-//                   begin
-//                     Sqrt_DI[0]=2'b00;
-//                     Q_sqrt0={{(C_MANT_FP64-43){1'b0}},Qcnt_four_12[50:3]};
-//                     Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-//                     Sqrt_DI[1]=2'b00;
-//                     Q_sqrt1={{(C_MANT_FP64-44){1'b0}},Qcnt_four_12[50:2]};
-//                     Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-//                     Sqrt_DI[2]=2'b00;
-//                     Q_sqrt2={{(C_MANT_FP64-45){1'b0}},Qcnt_four_12[50:1]};
-//                     Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-//                     Sqrt_DI[3]=2'b00;
-//                     Q_sqrt3={{(C_MANT_FP64-46){1'b0}},Qcnt_four_12[50:0]};
-//                     Sqrt_Q3=Sqrt_quotinent_S[1]?Q_sqrt_com_3:Q_sqrt3;
-//                   end
-
-//                 6'b001101:
-//                   begin
-//                     Sqrt_DI[0]=2'b00;
-//                     Q_sqrt0={{(C_MANT_FP64-47){1'b0}},Qcnt_four_13[54:3]};
-//                     Sqrt_Q0=Quotient_DP[0]?Q_sqrt_com_0:Q_sqrt0;
-//                     Sqrt_DI[1]=2'b00;
-//                     Q_sqrt1={{(C_MANT_FP64-48){1'b0}},Qcnt_four_13[54:2]};
-//                     Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-//                     Sqrt_DI[2]=2'b00;
-//                     Q_sqrt2={{(C_MANT_FP64-49){1'b0}},Qcnt_four_13[54:1]};
-//                     Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-//                     Sqrt_DI[3]=2'b00;
-//                     Q_sqrt3={{(C_MANT_FP64-50){1'b0}},Qcnt_four_13[54:0]};
-//                     Sqrt_Q3=Sqrt_quotinent_S[1]?Q_sqrt_com_3:Q_sqrt3;
-//                   end
-
-//                 default:
-//                   begin
-//                     Sqrt_DI[0]=Mant_D_sqrt_Norm[C_MANT_FP64+1:C_MANT_FP64];
-//                     Q_sqrt0={{(C_MANT_FP64+5){1'b0}},Qcnt_four_0[3]};
-//                     Sqrt_Q0=Q_sqrt_com_0;
-//                     Sqrt_DI[1]=Mant_D_sqrt_Norm[C_MANT_FP64-1:C_MANT_FP64-2];
-//                     Q_sqrt1={{(C_MANT_FP64+4){1'b0}},Qcnt_four_0[3:2]};
-//                     Sqrt_Q1=Sqrt_quotinent_S[3]?Q_sqrt_com_1:Q_sqrt1;
-//                     Sqrt_DI[2]=Mant_D_sqrt_Norm[C_MANT_FP64-3:C_MANT_FP64-4];
-//                     Q_sqrt2={{(C_MANT_FP64+3){1'b0}},Qcnt_four_0[3:1]};
-//                     Sqrt_Q2=Sqrt_quotinent_S[2]?Q_sqrt_com_2:Q_sqrt2;
-//                     Sqrt_DI[3]=Mant_D_sqrt_Norm[C_MANT_FP64-5:C_MANT_FP64-6];
-//                     Q_sqrt3={{(C_MANT_FP64+2){1'b0}},Qcnt_four_0[3:0]};
-//                     Sqrt_Q3=Sqrt_quotinent_S[1]?Q_sqrt_com_3:Q_sqrt3;
-//                   end
-//               endcase
-//             end
-//       endcase
-//    /////////////////////////////////////////////////////////////////////////////
-//    // Operands for square root when Iteration_unit_num_S = 2'b11, end         //
-//    /////////////////////////////////////////////////////////////////////////////
-//  end
-
-
-  // TODO check if this can be removed
-  // assign Sqrt_R0= ((Sqrt_start_dly_S)?'0:{Partial_remainder_DP[C_MANT_FP64+5:0]});
-  // assign Sqrt_R1= {Iteration_cell_sum_AMASK_D[0][C_MANT_FP64+5],Iteration_cell_sum_AMASK_D[0][C_MANT_FP64+2:0],Sqrt_DO[0]} ;
-  // assign Sqrt_R2= {Iteration_cell_sum_AMASK_D[1][C_MANT_FP64+5],Iteration_cell_sum_AMASK_D[1][C_MANT_FP64+2:0],Sqrt_DO[1]};
-  // assign Sqrt_R3= {Iteration_cell_sum_AMASK_D[2][C_MANT_FP64+5],Iteration_cell_sum_AMASK_D[2][C_MANT_FP64+2:0],Sqrt_DO[2]};
-  // assign Sqrt_R4= {Iteration_cell_sum_AMASK_D[3][C_MANT_FP64+5],Iteration_cell_sum_AMASK_D[3][C_MANT_FP64+2:0],Sqrt_DO[3]};
 
   // logic [C_MANT_FP64+5:0]                               Denominator_se_format_DB;  //
   logic [MAN_BITS+5:0]                               Denominator_se_format_DB;  //
@@ -2627,10 +757,6 @@ assign Denominator_se_format_DB={Denominator_se_DB,
       end
     endgenerate
 
-
-
-
-
   //                   for           iteration cell_U2
   // logic [C_MANT_FP64+5:0]                          Thi_iteration_cell_div_a_D,Thi_iteration_cell_div_b_D;
   logic [MAN_BITS+5:0]                          Thi_iteration_cell_div_a_D,Thi_iteration_cell_div_b_D;
@@ -2651,7 +777,7 @@ assign Denominator_se_format_DB={Denominator_se_DB,
   //     end
   // endgenerate
   generate
-    if((Iteration_unit_num_S==2'b10) | (Iteration_unit_num_S==2'b11))
+    if((Iteration_unit_num_S==3'b010) | (Iteration_unit_num_S==3'b011) | (Iteration_unit_num_S==3'b111))
       begin
         assign Sel_b_for_thi_S=~Iteration_cell_sum_AMASK_D[1][MAN_BITS+5];
         assign Thi_iteration_cell_div_a_D={Iteration_cell_sum_AMASK_D[1][MAN_BITS+4:MAN_BITS-MAN_BITS+3],Sel_b_for_thi_S,3'b0};
@@ -2660,13 +786,10 @@ assign Denominator_se_format_DB={Denominator_se_DB,
         assign Iteration_cell_b_BMASK_D[2]={Thi_iteration_cell_div_b_D};
       end
   endgenerate
-
-
   //                   for           iteration cell_U3
   // logic [C_MANT_FP64+5:0]                          Fou_iteration_cell_div_a_D,Fou_iteration_cell_div_b_D;
   logic [MAN_BITS+5:0]                          Fou_iteration_cell_div_a_D,Fou_iteration_cell_div_b_D;
   logic                                            Sel_b_for_fou_S;
-
   // generate
   //   if(Iteration_unit_num_S==2'b11)
   //     begin
@@ -2683,13 +806,56 @@ assign Denominator_se_format_DB={Denominator_se_DB,
   //     end
   // endgenerate
   generate
-    if(Iteration_unit_num_S==2'b11)
+    if((Iteration_unit_num_S==3'b011) | (Iteration_unit_num_S==3'b111))
       begin
         assign Sel_b_for_fou_S=~Iteration_cell_sum_AMASK_D[2][MAN_BITS+5];
         assign Fou_iteration_cell_div_a_D={Iteration_cell_sum_AMASK_D[2][MAN_BITS+4:MAN_BITS-MAN_BITS+3],Sel_b_for_fou_S,3'b0};
         assign Fou_iteration_cell_div_b_D=Sel_b_for_fou_S?Denominator_se_format_DB:{Denominator_se_D,4'b0};
         assign Iteration_cell_a_BMASK_D[3]={Fou_iteration_cell_div_a_D};
         assign Iteration_cell_b_BMASK_D[3]={Fou_iteration_cell_div_b_D};
+      end
+  endgenerate
+
+  // Additional iteration cells for 8-unit support (U4..U7)
+  logic [MAN_BITS+5:0]                          Fiv_iteration_cell_div_a_D,Fiv_iteration_cell_div_b_D;
+  logic                                            Sel_b_for_fiv_S;
+  logic [MAN_BITS+5:0]                          Six_iteration_cell_div_a_D,Six_iteration_cell_div_b_D;
+  logic                                            Sel_b_for_six_S;
+  logic [MAN_BITS+5:0]                          Sev_iteration_cell_div_a_D,Sev_iteration_cell_div_b_D;
+  logic                                            Sel_b_for_sev_S;
+  logic [MAN_BITS+5:0]                          Eig_iteration_cell_div_a_D,Eig_iteration_cell_div_b_D;
+  logic                                            Sel_b_for_eig_S;
+
+  generate
+    if(Iteration_unit_num_S==3'b111)
+      begin
+        // U4
+        assign Sel_b_for_fiv_S = ~Iteration_cell_sum_AMASK_D[3][MAN_BITS+5];
+        assign Fiv_iteration_cell_div_a_D = {Iteration_cell_sum_AMASK_D[3][MAN_BITS+4:MAN_BITS-MAN_BITS+3],Sel_b_for_fiv_S,3'b0};
+        assign Fiv_iteration_cell_div_b_D = Sel_b_for_fiv_S?Denominator_se_format_DB:{Denominator_se_D,4'b0};
+        assign Iteration_cell_a_BMASK_D[4] = {Fiv_iteration_cell_div_a_D};
+        assign Iteration_cell_b_BMASK_D[4] = {Fiv_iteration_cell_div_b_D};
+
+        // U5
+        assign Sel_b_for_six_S = ~Iteration_cell_sum_AMASK_D[4][MAN_BITS+5];
+        assign Six_iteration_cell_div_a_D = {Iteration_cell_sum_AMASK_D[4][MAN_BITS+4:MAN_BITS-MAN_BITS+3],Sel_b_for_six_S,3'b0};
+        assign Six_iteration_cell_div_b_D = Sel_b_for_six_S?Denominator_se_format_DB:{Denominator_se_D,4'b0};
+        assign Iteration_cell_a_BMASK_D[5] = {Six_iteration_cell_div_a_D};
+        assign Iteration_cell_b_BMASK_D[5] = {Six_iteration_cell_div_b_D};
+
+        // U6
+        assign Sel_b_for_sev_S = ~Iteration_cell_sum_AMASK_D[5][MAN_BITS+5];
+        assign Sev_iteration_cell_div_a_D = {Iteration_cell_sum_AMASK_D[5][MAN_BITS+4:MAN_BITS-MAN_BITS+3],Sel_b_for_sev_S,3'b0};
+        assign Sev_iteration_cell_div_b_D = Sel_b_for_sev_S?Denominator_se_format_DB:{Denominator_se_D,4'b0};
+        assign Iteration_cell_a_BMASK_D[6] = {Sev_iteration_cell_div_a_D};
+        assign Iteration_cell_b_BMASK_D[6] = {Sev_iteration_cell_div_b_D};
+
+        // U7
+        assign Sel_b_for_eig_S = ~Iteration_cell_sum_AMASK_D[6][MAN_BITS+5];
+        assign Eig_iteration_cell_div_a_D = {Iteration_cell_sum_AMASK_D[6][MAN_BITS+4:MAN_BITS-MAN_BITS+3],Sel_b_for_eig_S,3'b0};
+        assign Eig_iteration_cell_div_b_D = Sel_b_for_eig_S?Denominator_se_format_DB:{Denominator_se_D,4'b0};
+        assign Iteration_cell_a_BMASK_D[7] = {Eig_iteration_cell_div_a_D};
+        assign Iteration_cell_b_BMASK_D[7] = {Eig_iteration_cell_div_b_D};
       end
   endgenerate
 
@@ -2708,9 +874,9 @@ assign Denominator_se_format_DB={Denominator_se_DB,
    /////////////////////////////////////////////////////////////////////////////
 
 
-  logic                                             Div_enable_SI   [3:0];
-  logic                                             Div_start_dly_SI   [3:0];
-  logic                                             Sqrt_enable_SI   [3:0];
+  logic                                             Div_enable_SI   [7:0];
+  logic                                             Div_start_dly_SI   [7:0];
+  logic                                             Sqrt_enable_SI   [7:0];
   generate
     genvar i,j;
       for (i=0; i <= Iteration_unit_num_S ; i++) //Depending on how many iteration units you make inparallel
@@ -2751,7 +917,7 @@ assign Denominator_se_format_DB={Denominator_se_DB,
   always_comb
     begin
       case (Iteration_unit_num_S)
-        2'b00:
+        3'b000:
           begin
             if(Fsm_enable_S)
               //  Partial_remainder_DN = Sqrt_enable_SO?Sqrt_R1:Iteration_cell_sum_AMASK_D[0];
@@ -2759,7 +925,7 @@ assign Denominator_se_format_DB={Denominator_se_DB,
             else
                Partial_remainder_DN = Partial_remainder_DP;
           end
-        2'b01:
+        3'b001:
           begin
             if(Fsm_enable_S)
               //  Partial_remainder_DN = Sqrt_enable_SO?Sqrt_R2:Iteration_cell_sum_AMASK_D[1];
@@ -2767,7 +933,7 @@ assign Denominator_se_format_DB={Denominator_se_DB,
             else
                Partial_remainder_DN = Partial_remainder_DP;
           end
-        2'b10:
+        3'b010:
           begin
             if(Fsm_enable_S)
               //  Partial_remainder_DN = Sqrt_enable_SO?Sqrt_R3:Iteration_cell_sum_AMASK_D[2];
@@ -2775,13 +941,20 @@ assign Denominator_se_format_DB={Denominator_se_DB,
             else
                Partial_remainder_DN = Partial_remainder_DP;
           end
-        2'b11:
+        3'b011:
           begin
             if(Fsm_enable_S)
               //  Partial_remainder_DN = Sqrt_enable_SO?Sqrt_R4:Iteration_cell_sum_AMASK_D[3];
               Partial_remainder_DN = Iteration_cell_sum_AMASK_D[3];
             else
                Partial_remainder_DN = Partial_remainder_DP;
+          end
+        3'b111:
+          begin
+            if(Fsm_enable_S)
+              Partial_remainder_DN = Iteration_cell_sum_AMASK_D[7];
+            else
+              Partial_remainder_DN = Partial_remainder_DP;
           end
         endcase
      end
@@ -2801,12 +974,13 @@ assign Denominator_se_format_DB={Denominator_se_DB,
     end
 
   //  logic [C_MANT_FP64+4:0] Quotient_DN;
-  logic [MAN_BITS+4:0] Quotient_DN;
+  // logic [MAN_BITS+4:0] Quotient_DN;
+  logic [MAN_BITS+12:0] Quotient_DN;
 
   always_comb                            // Can choosen the different carry-outs based on different operations
     begin
       case (Iteration_unit_num_S)
-        2'b00:
+        3'b000:
           begin
             if(Fsm_enable_S)
               //  Quotient_DN= Sqrt_enable_SO ? {Quotient_DP[C_MANT_FP64+3:0],Sqrt_quotinent_S[3]} :{Quotient_DP[C_MANT_FP64+3:0],Iteration_cell_carry_D[0]};
@@ -2814,7 +988,7 @@ assign Denominator_se_format_DB={Denominator_se_DB,
             else
                Quotient_DN= Quotient_DP;
           end
-        2'b01:
+        3'b001:
           begin
             if(Fsm_enable_S)
               //  Quotient_DN= Sqrt_enable_SO ? {Quotient_DP[C_MANT_FP64+2:0],Sqrt_quotinent_S[3:2]} :{Quotient_DP[C_MANT_FP64+2:0],Iteration_cell_carry_D[0],Iteration_cell_carry_D[1]};
@@ -2822,7 +996,7 @@ assign Denominator_se_format_DB={Denominator_se_DB,
             else
                Quotient_DN= Quotient_DP;
           end
-        2'b10:
+        3'b010:
           begin
             if(Fsm_enable_S)
               //  Quotient_DN= Sqrt_enable_SO ? {Quotient_DP[C_MANT_FP64+1:0],Sqrt_quotinent_S[3:1]} : {Quotient_DP[C_MANT_FP64+1:0],Iteration_cell_carry_D[0],Iteration_cell_carry_D[1],Iteration_cell_carry_D[2]};
@@ -2830,13 +1004,20 @@ assign Denominator_se_format_DB={Denominator_se_DB,
             else
                Quotient_DN= Quotient_DP;
           end
-        2'b11:
+        3'b011:
           begin
             if(Fsm_enable_S)
               //  Quotient_DN= Sqrt_enable_SO ? {Quotient_DP[C_MANT_FP64:0],Sqrt_quotinent_S } : {Quotient_DP[C_MANT_FP64:0],Iteration_cell_carry_D[0],Iteration_cell_carry_D[1],Iteration_cell_carry_D[2],Iteration_cell_carry_D[3]};
               Quotient_DN= {Quotient_DP[MAN_BITS:0],Iteration_cell_carry_D[0],Iteration_cell_carry_D[1],Iteration_cell_carry_D[2],Iteration_cell_carry_D[3]};
             else
                Quotient_DN= Quotient_DP;
+          end
+        3'b111:
+          begin
+            if(Fsm_enable_S)
+              Quotient_DN= {Quotient_DP[MAN_BITS+4:0],Iteration_cell_carry_D[0],Iteration_cell_carry_D[1],Iteration_cell_carry_D[2],Iteration_cell_carry_D[3],Iteration_cell_carry_D[4],Iteration_cell_carry_D[5],Iteration_cell_carry_D[6],Iteration_cell_carry_D[7]};
+            else
+              Quotient_DN= Quotient_DP;
           end
         endcase
      end
@@ -2859,7 +1040,7 @@ assign Denominator_se_format_DB={Denominator_se_DB,
  
 //////////////////////one iteration unit, start///////////////////////////////////////
    generate
-     if(Iteration_unit_num_S==2'b00)
+    if(Iteration_unit_num_S==3'b000)
        begin
         // always_comb
           // begin
@@ -3297,7 +1478,7 @@ assign Denominator_se_format_DB={Denominator_se_DB,
 
 //////////////////////two iteration units, start///////////////////////////////////////
    generate
-     if(Iteration_unit_num_S==2'b01)
+    if(Iteration_unit_num_S==3'b001)
        begin
         // always_comb
         //   begin
@@ -3466,7 +1647,7 @@ assign Denominator_se_format_DB={Denominator_se_DB,
                       end
                     6'h13,6'h12:
                       begin
-                        // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-33:0],{(4+33){1'b0}} }; //Precision_ctl_S+1
+                        // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-33:0],{(4+33){1'b0}} }; //Precision_ctl_S+1Quotient_DP
                         Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-33:0],{(4+33){1'b1}} }; //Precision_ctl_S+1
                       end
                     6'h11,6'h10:
@@ -3577,7 +1758,7 @@ assign Denominator_se_format_DB={Denominator_se_DB,
 
 //////////////////////three iteration units, start///////////////////////////////////////
    generate
-     if(Iteration_unit_num_S==2'b10)
+    if(Iteration_unit_num_S==3'b010)
        begin
         // always_comb
         //   begin
@@ -3786,7 +1967,7 @@ assign Denominator_se_format_DB={Denominator_se_DB,
                     default :
                       begin
                         // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16ALT+4:0],{(C_MANT_FP64-C_MANT_FP16ALT){1'b0}} }; //+4
-                        // Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0] }; //+4
+                        // Mant_result_prenorm_DO = {Mant_result_prenorm_DOQuotient_DP[MAN_BITS+4:0] }; //+4
                         Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:1],1'b1}; //+4
                         
                       end
@@ -3801,7 +1982,7 @@ assign Denominator_se_format_DB={Denominator_se_DB,
 
 //////////////////////four iteration units, start///////////////////////////////////////
    generate
-     if(Iteration_unit_num_S==2'b11)
+    if(Iteration_unit_num_S==3'b011)
        begin
         
             // case (Format_sel_S)
@@ -3999,7 +2180,159 @@ assign Denominator_se_format_DB={Denominator_se_DB,
       endgenerate
 //////////////////////four iteration units, end///////////////////////////////////////
 
+//////////////////////eight iteration units, start/////////////////////////////////////
+generate
+    if(Iteration_unit_num_S==3'b111)
+       begin
+            // case (Format_sel_S)
+            if (FpFormat == fpnew_pkg_snax::FP32)
+              // 2'b00:
+                begin
+                  always_comb
+                  begin
+                  case (PRECISION_CTRL)
+                    6'h00: //TODO LOOK AT THE PRECISION
+                      begin
+                        // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32+4:0],{(C_MANT_FP64-C_MANT_FP32){1'b0}}}; //+4
+                        // Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+8:5],1'b1};//,1'b1}; //+4
+                      end
+                    6'h17,6'h16,6'h15,6'h14,6'h13,6'h12,6'h11,6'h10:
+                      begin
+                        // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32:0],{(C_MANT_FP64-C_MANT_FP32+4){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-0:0],{(8){1'b1}}}; //Precision_ctl_S+1
+                      end
+                    6'h0f,6'h0e,6'h0d,6'h0c,6'h0b,6'h0a,6'h09,6'h08:
+                      begin
+                        // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-4:0],{(C_MANT_FP64-C_MANT_FP32+4+4){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-8:0],{(8+8){1'b1}}}; //Precision_ctl_S+1
+                      end
+                    
+                    6'h07,6'h06:
+                      begin
+                        // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32-16:0],{(C_MANT_FP64-C_MANT_FP32+4+16){1'b0}}}; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-16:0],{(4+16){1'b1}}}; //Precision_ctl_S+1
+                      end
+                    default:
+                      begin
+                        // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP32+4:0],{(C_MANT_FP64-C_MANT_FP32){1'b0}}}; //+4
+                        // Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+8:7],1'b1}; //+4
+                      end
+                  endcase
+                end
+                end
+            else if (FpFormat == fpnew_pkg_snax::FP64)
+              // 2'b01:
+                begin
+                  always_comb
+                  begin
+                  case (PRECISION_CTRL)
+                    6'h00:
+                      begin
+                        // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64+3:0],{(1){1'b0}}}; //+3
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+11:8],{(1){1'b1}}}; //+3
+                      end
+                    6'h34: //TODO LOOK AT THE PRECISION
+                      begin
+                        // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64+3:0],{(1){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-1:0],{(9){1'b1}} }; //Precision_ctl_S+1
+                      end
+                    6'h33,6'h32,6'h31,6'h30,6'h2f,6'h2e,6'h2d,6'h2c:
+                      begin
+                        // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-1:0],{(5){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-9:0],{(9+8){1'b1}} }; //Precision_ctl_S+1
+                      end
+                    6'h2b,6'h2a,6'h29,6'h28,6'h27,6'h26,6'h25,6'h24:
+                      begin
+                        // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-9:0],{(13){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-17:0],{(9+16){1'b1}} }; //Precision_ctl_S+1
+                      end
+                    6'h23,6'h22,6'h21,6'h20,6'h1f,6'h1e,6'h1d,6'h1c:
+                      begin
+                        // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-17:0],{(21){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-25:0],{(9+24){1'b1}} }; //Precision_ctl_S+1
+                      end
+                    6'h1b,6'h1a,6'h19,6'h18,6'h17,6'h16,6'h15,6'h14:
+                      begin
+                        // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-25:0],{(29){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-33:0],{(9+32){1'b1}} }; //Precision_ctl_S+1
+                      end
+                    6'h13,6'h12,6'h11,6'h10,6'h0f,6'h0e,6'h0d,6'h0c:
+                      begin
+                        // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-33:0],{(37){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-41:0],{(9+40){1'b1}} }; //Precision_ctl_S+1
+                      end
+                    6'h0b,6'h0a,6'h09,6'h08,6'h07,6'h06:
+                      begin
+                        // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64-41:0],{(45){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS-45:0],{(45){1'b1}} }; //Precision_ctl_S+1
+                      end
+                    default:
+                      begin
+                        // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP64+3:0],{(1){1'b0}}}; //+3
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+8:1],{(1){1'b1}}}; //+3
+                      end
+                  endcase
+                end
+                end
+            else if (FpFormat == fpnew_pkg_snax::FP16)
+              // 2'b10:
+                begin
+                  always_comb
+                  begin
+                  case (PRECISION_CTRL)
+                    6'b00:
+                      begin
+                        // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16+5:0],{(C_MANT_FP64-C_MANT_FP16-1){1'b0}} }; //+5
+                        // Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+5
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+8:5],1'b1}; //+4
+                      end
+                    6'h0a,6'h09,6'h08,6'h07,6'h06:
+                      begin
+                        // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16+1:1],{(C_MANT_FP64-C_MANT_FP16+4){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS:1],{(8){1'b1}} }; //Precision_ctl_S+1
+                      end
+                    default :
+                      begin
+                        // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16+5:0],{(C_MANT_FP64-C_MANT_FP16-1){1'b0}} }; //+5
+                        // Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+5
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:1],1'b1}; //+4
+                      end
+                  endcase
+                end
+                end
+            else if (FpFormat == fpnew_pkg_snax::FP16ALT) 
+              // 2'b11:
+                begin
+                  always_comb
+                  begin
 
+                  case (PRECISION_CTRL)
+                    6'b00:
+                      begin
+                        // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16ALT+4:0],{(C_MANT_FP64-C_MANT_FP16ALT){1'b0}} }; //+4
+                        // Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:1],1'b1}; //+4
+                      end
+                    6'h07,6'h06:
+                      begin
+                        // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16ALT:0],{(C_MANT_FP64-C_MANT_FP16ALT+4){1'b0}} }; //Precision_ctl_S+1
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS:0],{(4){1'b1}} }; //Precision_ctl_S+1
+                      end
+                    default :
+                      begin
+                        // Mant_result_prenorm_DO = {Quotient_DP[C_MANT_FP16ALT+4:0],{(C_MANT_FP64-C_MANT_FP16ALT){1'b0}} }; //+4
+                        // Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:0]}; //+4
+                        Mant_result_prenorm_DO = {Quotient_DP[MAN_BITS+4:1],1'b1}; //+4
+                      end
+                  endcase
+                end
+            // endcase
+          end
+        end
+      endgenerate
+//////////////////////eight iteration units,end///////////////////////////////////////
 
 
 

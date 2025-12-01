@@ -67,10 +67,10 @@ module control_mvp # (
   //  input logic [C_EXP_FP64:0]                         Exp_num_DI,
   //  input logic [C_MANT_FP64:0]                        Denominator_DI,
   //  input logic [C_EXP_FP64:0]                         Exp_den_DI,
-   input logic [MAN_BITS:0]                         Numerator_DI,
-   input logic [EXP_BITS:0]                         Exp_num_DI, //exponent of numerator
-   input logic [MAN_BITS:0]                         Denominator_DI, 
-   input logic [EXP_BITS:0]                         Exp_den_DI, // exponent of denominator
+   input logic [MAN_BITS:0]                           Numerator_DI,
+   input logic [EXP_BITS:0]                           Exp_num_DI, //exponent of numerator
+   input logic [MAN_BITS:0]                           Denominator_DI, 
+   input logic [EXP_BITS:0]                           Exp_den_DI, // exponent of denominator
 
 
    output logic                                       Div_start_dly_SO ,
@@ -156,9 +156,9 @@ module control_mvp # (
 
 
   //  logic [C_MANT_FP64+1:0]                            Mant_D_sqrt_Norm;
-   logic [MAN_BITS+1:0]                            Mant_D_sqrt_Norm; // TODO check if this can be removed with the rest of sqrt
+  //  logic [MAN_BITS+1:0]                            Mant_D_sqrt_Norm; // 
 
-   assign Mant_D_sqrt_Norm=Exp_num_DI[0]?{1'b0,Numerator_DI}:{Numerator_DI,1'b0}; //for sqrt
+  //  assign Mant_D_sqrt_Norm=Exp_num_DI[0]?{1'b0,Numerator_DI}:{Numerator_DI,1'b0}; //for sqrt
 
    /////////////////////////////////////////////////////////////////////////////
    // Format Selection      --> No longer needed                                                  //
@@ -2416,8 +2416,8 @@ generate
   // localparam logic HALF_BIAS = (fpnew_pkg_snax::half_bias(FpFormat));
 
   assign Exp_add_a_D = {Exp_num_DI[EXP_BITS],Exp_num_DI[EXP_BITS],Exp_num_DI};
-  assign Exp_add_b_D = {~Exp_den_DI[EXP_BITS],~Exp_den_DI[EXP_BITS],~Exp_den_DI};
-  assign Exp_add_c_D = {Div_start_dly_S?{{C_BIAS_AONE}}:{{C_HALF_BIAS}}};
+  assign Exp_add_b_D = {~Exp_den_DI[EXP_BITS],~Exp_den_DI[EXP_BITS],~Exp_den_DI}; // 2's complement 
+  assign Exp_add_c_D = {Div_start_dly_S?{{C_BIAS_AONE}}:{{C_HALF_BIAS}}}; // Add the bias 
   assign Exp_result_prenorm_DN  = (Start_dly_S)?{Exp_add_a_D + Exp_add_b_D + Exp_add_c_D}:Exp_result_prenorm_DP;
 
 

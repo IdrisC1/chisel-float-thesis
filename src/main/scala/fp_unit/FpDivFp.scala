@@ -23,7 +23,7 @@ class FpDivFpBlackBox(
     // "PipeConfig" -> fpnew_pkg_snax::AFTER,
     // "TagType" -> "logic",
     "PRECISION_CTRL" -> RawParam("'h00"),
-    "Iteration_unit_num_S" -> RawParam("3111") // Use four units
+    "Iteration_unit_num_S" -> RawParam("3111") // Use 8 units
     // "RM_SI"       -> RawParam("'h0")
 )) with HasBlackBoxResource {
 

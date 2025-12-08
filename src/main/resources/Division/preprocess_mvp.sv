@@ -63,12 +63,12 @@ module preprocess_mvp # (
   //  output logic [C_EXP_FP64:0]   Exp_b_DO_norm,
   //  output logic [C_MANT_FP64:0]  Mant_a_DO_norm,
   //  output logic [C_MANT_FP64:0]  Mant_b_DO_norm,
-   output logic [EXP_BITS:0]   Exp_a_DO_norm,
+   output logic [EXP_BITS:0]   Exp_a_DO_norm, 
    output logic [EXP_BITS:0]   Exp_b_DO_norm,
-   output logic [MAN_BITS:0]   Mant_a_DO_norm,
+   output logic [MAN_BITS:0]   Mant_a_DO_norm, // Includes hidden bit
    output logic [MAN_BITS:0]   Mant_b_DO_norm,
 
-   output logic [C_RM-1:0]       RM_dly_SO,
+  //  output logic [C_RM-1:0]       RM_dly_SO,
 
    output logic                  Sign_z_DO,
    output logic                  Inf_a_SO,
@@ -81,11 +81,6 @@ module preprocess_mvp # (
    output logic                  Special_case_SBO,
    output logic                  Special_case_dly_SBO
    );
-
-
-  // localparam int unsigned EXP_BITS = fpnew_pkg_snax::exp_bits(FpFormat);
-  // localparam int unsigned MAN_BITS = fpnew_pkg_snax::man_bits(FpFormat);
-  // localparam int unsigned WIDTH = fpnew_pkg_snax::width(FpFormat);
 
    //Hidden Bits
    logic                         Hb_a_D;
@@ -244,9 +239,6 @@ module preprocess_mvp # (
     //        endcase
     //    end
 
-
-
-
    logic               Zero_a_SN,Zero_a_SP;
    logic               Zero_b_SN,Zero_b_SP;
    logic               Inf_a_SN,Inf_a_SP;
@@ -294,25 +286,25 @@ module preprocess_mvp # (
    assign Special_case_SBO=(~{(Div_start_SI)?(Zero_a_SN | Zero_b_SN |  Inf_a_SN | Inf_b_SN | NaN_a_SN | NaN_b_SN): (Zero_a_SN | Inf_a_SN | NaN_a_SN | Sign_a_D) })&&(Start_S&&Ready_SI);
 
 
-   always_ff @(posedge Clk_CI, negedge Rst_RBI)
-     begin
-       if(~Rst_RBI)
-          begin
-            Special_case_dly_SBO <= '0;
-          end
-       else if((Start_S&&Ready_SI))
-         begin
-            Special_case_dly_SBO <= Special_case_SBO;
-         end
-       else if(Special_case_dly_SBO)
-         begin
-         Special_case_dly_SBO <= 1'b1;
-         end
-      else
-         begin
-            Special_case_dly_SBO <= '0;
-         end
-    end
+  //  always_ff @(posedge Clk_CI, negedge Rst_RBI)
+  //    begin
+  //      if(~Rst_RBI)
+  //         begin
+  //           Special_case_dly_SBO <= '0;
+  //         end
+  //      else if((Start_S&&Ready_SI))
+  //        begin
+  //           Special_case_dly_SBO <= Special_case_SBO;
+  //        end
+  //      else if(Special_case_dly_SBO)
+  //        begin
+  //        Special_case_dly_SBO <= 1'b1;
+  //        end
+  //     else
+  //        begin
+  //           Special_case_dly_SBO <= '0;
+  //        end
+  //   end
 
    /////////////////////////////////////////////////////////////////////////////
    // Delay sign for normalization and round                                  //
@@ -365,7 +357,7 @@ module preprocess_mvp # (
             RM_DP <= RM_DN;
          end
     end
-   assign RM_dly_SO = RM_DP;
+  //  assign RM_dly_SO = RM_DP;
    logic [$clog2(MAN_BITS+1)-1:0] Mant_leadingOne_a, Mant_leadingOne_b;
   //  logic [5:0]                  Mant_leadingOne_a, Mant_leadingOne_b;
    logic                        Mant_zero_S_a,Mant_zero_S_b;

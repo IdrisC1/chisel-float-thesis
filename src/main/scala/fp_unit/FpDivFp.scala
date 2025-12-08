@@ -23,8 +23,9 @@ class FpDivFpBlackBox(
     // "PipeConfig" -> fpnew_pkg_snax::AFTER,
     // "TagType" -> "logic",
     "PRECISION_CTRL" -> RawParam("'h00"),
-    "Iteration_unit_num_S" -> RawParam("3111") // Use 8 units
-    // "RM_SI"       -> RawParam("'h0")
+    "Iteration_unit_num_S" -> RawParam("3'b111"), // Use 8 units
+    "ROM_ADDR_BITS" -> RawParam("8"),
+    "RM_SI"       -> RawParam("3'b000")
 )) with HasBlackBoxResource {
 
     val io = IO(new Bundle {
@@ -55,6 +56,7 @@ class FpDivFpBlackBox(
     
     // Division specific files
     addResource("/Division/defs_div_sqrt_mvp.sv")
+    addResource("/Division/fp_div_Goldschmidt.sv")
     addResource("/Division/control_mvp.sv")
     addResource("/Division/preprocess_mvp.sv")
     addResource("/Division/nrbd_nrsc_mvp.sv")

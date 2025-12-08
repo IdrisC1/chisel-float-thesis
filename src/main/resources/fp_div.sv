@@ -4,6 +4,7 @@ module fp_div #(
   // Datatype
   parameter fpnew_pkg_snax::fp_format_e FpFormat   = fpnew_pkg_snax::fp_format_e'(2),  //FP16 
   parameter logic [2:0] Iteration_unit_num_S  = 3'b011, //Default 4 
+  parameter int unsigned ROM_ADDR_BITS = 8, //Number of bits in ROM
 
   // Round mode
   // parameter fpnew_pkg_snax::roundmode_e RM_SI = fpnew_pkg_snax::RNE

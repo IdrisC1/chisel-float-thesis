@@ -56,10 +56,11 @@ module norm_div_sqrt_mvp #(
   (//Inputs
   //  input logic [C_MANT_FP64+4:0]                Mant_in_DI,  // Include the needed 4-bit for rounding and hidden bit
   //  input logic signed [C_EXP_FP64+1:0]          Exp_in_DI,
+   input logic                                  Clk_CI,
    input logic [MAN_BITS+4:0]                   Mant_in_DI,  // Include the needed 4-bit for rounding and hidden bit
    input logic signed [EXP_BITS+1:0]            Exp_in_DI,
    input logic                                  Sign_in_DI,
-   input logic                                  Div_enable_SI,
+   input logic                                  Div_enable_SI, //TODO remove this sigal and check what norm is needed for sqrt and what for divisions
   //  input logic                                  Sqrt_enable_SI,
    input logic                                  Inf_a_SI,
    input logic                                  Inf_b_SI,
@@ -68,6 +69,7 @@ module norm_div_sqrt_mvp #(
    input logic                                  NaN_a_SI,
    input logic                                  NaN_b_SI,
    input logic                                  SNaN_SI,
+   input logic                                  Done_SI,
   //  input logic [C_RM-1:0]                       RM_SI,
   //  input logic                                  Full_precision_SI,
   //  input logic                                  FP32_SI,
@@ -76,12 +78,16 @@ module norm_div_sqrt_mvp #(
   //  input logic                                  FP16ALT_SI,
    //Outputs
   //  output logic [C_EXP_FP64+C_MANT_FP64:0]      Result_DO,
+   output logic                                 Done_SO,  
    output logic [EXP_BITS+MAN_BITS:0]           Result_DO,
    output logic [4:0]                           Fflags_SO //{NV,DZ,OF,UF,NX}
    );
 
 
-
+  // always @( posedge Clk_CI ) begin //Normalization takes one clock cycle, then output is ok
+  //   Done_SO <= Done_SI;
+  // end
+  assign Done_SO = Done_SI;
 
    logic                                        Sign_res_D;
 
@@ -136,7 +142,7 @@ module norm_div_sqrt_mvp #(
 
 //
   // logic [C_EXP_FP64+1:0]                        Exp_subOne_D;
-  logic [EXP_BITS+1:0]                          Exp_subOne_D;
+  logic [EXP_BITS-1:0]                          Exp_subOne_D;
   assign Exp_subOne_D = Exp_in_DI - 1;
 
    //normalization
@@ -287,7 +293,7 @@ module norm_div_sqrt_mvp #(
              Mant_res_norm_D={1'b0,Mant_in_DI[MAN_BITS+4:5]};
              Exp_res_norm_D='0;
             //  Mant_forround_D={Mant_in_DI[4:0],{(C_MANT_FP64){1'b0}} };
-             Mant_forround_D={Mant_in_DI[4:0],{(MAN_BITS){1'b0}} };
+             Mant_forround_D={Mant_in_DI[4:0],{(MAN_BITS){1'b0}}};
              Sign_res_D=Sign_in_DI;
              NV_OP_S = 1'b0;
            end
@@ -502,7 +508,7 @@ module norm_div_sqrt_mvp #(
 
 
 
-
+   //TODO write this in a generate block
    always_comb //determine whether to round up or not
      begin
         Mant_roundUp_S = 1'b0;
@@ -510,7 +516,29 @@ module norm_div_sqrt_mvp #(
           C_RM_NEAREST :
             //Mant_roundUp_S = Mant_lower_D[1] && ((Mant_lower_D[0] | Mant_sticky_bit_D )| ( (FP32_SI&&Mant_upper_D[C_MANT_FP64-C_MANT_FP32]) | (FP64_SI&&Mant_upper_D[0]) | (FP16_SI&&Mant_upper_D[C_MANT_FP64-C_MANT_FP16]) | (FP16ALT_SI&&Mant_upper_D[C_MANT_FP64-C_MANT_FP16ALT]) ) );
             // Mant_roundUp_S = Mant_lower_D[1] && ((Mant_lower_D[0] | Mant_sticky_bit_D )| ( ((FpFormat == fpnew_pkg_snax::FP32)&&Mant_upper_D[C_MANT_FP64-C_MANT_FP32]) | ((FpFormat == fpnew_pkg_snax::FP64)&&Mant_upper_D[0]) | ((FpFormat == fpnew_pkg_snax::FP16)&&Mant_upper_D[C_MANT_FP64-C_MANT_FP16]) | ((FpFormat == fpnew_pkg_snax::FP16ALT)&&Mant_upper_D[C_MANT_FP64-C_MANT_FP16ALT]) ) );
-            Mant_roundUp_S = Mant_lower_D[1] && ((Mant_lower_D[0] | Mant_sticky_bit_D )| ( ((FpFormat == fpnew_pkg_snax::FP32)&&Mant_upper_D[0]) | ((FpFormat == fpnew_pkg_snax::FP64)&&Mant_upper_D[0]) | ((FpFormat == fpnew_pkg_snax::FP16)&&Mant_upper_D[0]) | ((FpFormat == fpnew_pkg_snax::FP16ALT)&&Mant_upper_D[0])));
+            // Mant_roundUp_S = Mant_lower_D[1] && ((Mant_lower_D[0] | Mant_sticky_bit_D )| ( ((FpFormat == fpnew_pkg_snax::FP32)&&Mant_upper_D[0]) | ((FpFormat == fpnew_pkg_snax::FP64)&&Mant_upper_D[0]) | ((FpFormat == fpnew_pkg_snax::FP16)&&Mant_upper_D[0]) | ((FpFormat == fpnew_pkg_snax::FP16ALT)&&Mant_upper_D[0])));
+            // Mant_roundUp_S = Mant_in_DI[3] ; //The above is not needed since now use a different divison algorithm ;
+            Mant_roundUp_S = Mant_lower_D[1] && (Mant_upper_D[0] || Mant_sticky_bit_D);
+            // Mant_roundUp_S = Mant_lower_D[1] && (Mant_sticky_bit_D || Mant_lower_D[0] || Mant_upper_D[0]);
+            // if (Mant_lower_D[1]==1'b0 && Mant_sticky_bit_D==1'b0) begin
+            //   Mant_roundUp_S = 1'b0;
+            // end
+            // else if (Mant_lower_D[1]==1'b0 && Mant_sticky_bit_D==1'b1) begin
+            //   Mant_roundUp_S = 1'b0;
+            // end     
+            // else if (Mant_lower_D[1]==1'b1 && Mant_sticky_bit_D==1'b0) begin
+              
+            //   // if (Mant_in_DI[3] == 1'b0) begin
+            //   //   Mant_roundUp_S = 1'b0;
+            //   // end
+            //   // else begin
+            //   //   Mant_roundUp_S = 1'b1;
+            //   // end
+            //   Mant_roundUp_S = Mant_upper_D[0];//Normally need to do: Mant_upper_D[0] Round to even (if lsb is 1 want to round to 0) -> But here 1'b1 works 
+            // end
+            // else begin
+            //   Mant_roundUp_S = 1'b1;
+            // end          
           C_RM_TRUNC   :
             Mant_roundUp_S = 0;
           C_RM_PLUSINF :

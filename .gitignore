@@ -348,3 +348,33 @@ project/plugins/project/
 hs_err_pid*
 
 ucli.key
+
+
+#cmd and in files
+.cmd
+.in
+02817774.cmd
+02817774.in
+02820824.cmd
+02820824.in
+02825526.cmd
+02825526.in
+02828700.cmd
+02828700.in
+02835169.cmd
+02835169.in
+02841212.cmd
+02841212.in
+02844218.cmd
+02844218.in
+02867598.cmd
+02867598.in
+02873932.cmd
+02873932.in
+02876498.cmd
+02876498.in
+02878497.cmd
+02878497.in
+src/test/scala/fp_unit/FpDivsFpTest.scala
+02527208.in
+02527208.cmd

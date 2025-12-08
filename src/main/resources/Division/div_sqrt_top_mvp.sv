@@ -40,6 +40,7 @@ module div_sqrt_top_mvp
     parameter logic [C_PC-1:0] PRECISION_CTRL = 'h00, // Full precision as default
     parameter logic [C_RM-1:0] RM_SI = 3'h0,
     parameter logic [2:0] Iteration_unit_num_S  = 3'b011, //Default 4 (encoded in 3 bits)
+    parameter int unsigned ROM_ADDR_BITS = 8, //Number of bits stored in ROM higer = larger mem, less iterations
 
     parameter int unsigned EXP_BITS = fpnew_pkg_snax::exp_bits(FpFormat),
     parameter int unsigned MAN_BITS = fpnew_pkg_snax::man_bits(FpFormat),
@@ -75,7 +76,7 @@ module div_sqrt_top_mvp
 
 
 
-
+  logic Done_Goldschmidt;
    //Operand components
   //  logic [C_EXP_FP64:0]                 Exp_a_D;
   //  logic [C_EXP_FP64:0]                 Exp_b_D;
@@ -90,12 +91,12 @@ module div_sqrt_top_mvp
 
   //  logic [C_EXP_FP64+1:0]               Exp_z_D;
   //  logic [C_MANT_FP64+4:0]              Mant_z_D;
-   logic [EXP_BITS+1:0]               Exp_z_D;
-   logic [MAN_BITS+4:0]              Mant_z_D;
+   logic [EXP_BITS+1:0]                 Exp_z_D;
+   logic [MAN_BITS+4:0]                 Mant_z_D;
 
    logic                                Sign_z_D;
    logic                                Start_S;
-   logic [C_RM-1:0]                     RM_dly_S;
+  //  logic [C_RM-1:0]                     RM_dly_S;
    logic                                Div_enable_S;
    logic                                Sqrt_enable_S;
    logic                                Inf_a_S;
@@ -106,6 +107,18 @@ module div_sqrt_top_mvp
    logic                                NaN_b_S;
    logic                                SNaN_S;
    logic                                Special_case_SB,Special_case_dly_SB;
+
+
+
+   // [NEW] Pipeline "Tunnel" Wires
+   // These carry flags from the Divider Output -> Normalizer Input
+   logic [2:0]                          RM_pipe_S;
+   logic                                Sign_z_pipe_S;
+   logic                                Special_case_pipe_S;
+   logic                                Inf_a_pipe_S, Inf_b_pipe_S;
+   logic                                Zero_a_pipe_S, Zero_b_pipe_S;
+   logic                                NaN_a_pipe_S, NaN_b_pipe_S, SNaN_pipe_S;
+
 
   //  logic Full_precision_S;
   //  logic FP32_S;
@@ -133,7 +146,7 @@ module div_sqrt_top_mvp
    .Exp_b_DO_norm         (Exp_b_D            ),
    .Mant_a_DO_norm        (Mant_a_D           ),
    .Mant_b_DO_norm        (Mant_b_D           ),
-   .RM_dly_SO             (RM_dly_S           ),
+  //  .RM_dly_SO             (RM_dly_S           ),
    .Sign_z_DO             (Sign_z_D           ),
    .Inf_a_SO              (Inf_a_S            ),
    .Inf_b_SO              (Inf_b_S            ),
@@ -146,64 +159,147 @@ module div_sqrt_top_mvp
    .Special_case_dly_SBO  (Special_case_dly_SB)
    );
 
- nrbd_nrsc_mvp    #(
+//  nrbd_nrsc_mvp    #(
+//   .FpFormat (FpFormat),
+//   .PRECISION_CTRL (PRECISION_CTRL),
+//   .Iteration_unit_num_S (Iteration_unit_num_S)
+//   ) nrbd_nrsc_U0
+//   (
+//    .Clk_CI                (Clk_CI             ),
+//    .Rst_RBI               (Rst_RBI            ),
+//    .Div_start_SI          (Div_start_SI       ) ,
+//   //  .Sqrt_start_SI         (Sqrt_start_SI      ),
+//    .Start_SI              (Start_S            ),
+//    .Kill_SI               (Kill_SI            ),
+//    .Special_case_SBI      (Special_case_SB    ),
+//    .Special_case_dly_SBI  (Special_case_dly_SB),
+//    .Div_enable_SO         (Div_enable_S       ),
+//   //  .Sqrt_enable_SO        (Sqrt_enable_S      ),
+//   //  .Precision_ctl_SI      (Precision_ctl_SI   ),
+//   //  .Format_sel_SI         (Format_sel_SI      ),
+//    .Exp_a_DI              (Exp_a_D            ),
+//    .Exp_b_DI              (Exp_b_D            ),
+//    .Mant_a_DI             (Mant_a_D           ),
+//    .Mant_b_DI             (Mant_b_D           ),
+//   //  .Full_precision_SO     (Full_precision_S   ),
+//   //  .FP32_SO               (FP32_S             ),
+//   //  .FP64_SO               (FP64_S             ),
+//   //  .FP16_SO               (FP16_S             ),
+//   //  .FP16ALT_SO            (FP16ALT_S          ),
+//    .Ready_SO              (Ready_SO           ),
+//    .Done_SO               (Done_SO            ),
+//    .Exp_z_DO              (Exp_z_D            ),
+//    .Mant_z_DO             (Mant_z_D           )
+//     );
+
+
+nrbd_nrsc_mvp    #(
   .FpFormat (FpFormat),
   .PRECISION_CTRL (PRECISION_CTRL),
-  .Iteration_unit_num_S (Iteration_unit_num_S)
+  .ROM_ADDR_BITS(ROM_ADDR_BITS)
   ) nrbd_nrsc_U0
   (
    .Clk_CI                (Clk_CI             ),
    .Rst_RBI               (Rst_RBI            ),
-   .Div_start_SI          (Div_start_SI       ) ,
-  //  .Sqrt_start_SI         (Sqrt_start_SI      ),
+   .Div_start_SI          (Div_start_SI       ),
    .Start_SI              (Start_S            ),
    .Kill_SI               (Kill_SI            ),
-   .Special_case_SBI      (Special_case_SB    ),
-   .Special_case_dly_SBI  (Special_case_dly_SB),
-   .Div_enable_SO         (Div_enable_S       ),
-  //  .Sqrt_enable_SO        (Sqrt_enable_S      ),
-  //  .Precision_ctl_SI      (Precision_ctl_SI   ),
-  //  .Format_sel_SI         (Format_sel_SI      ),
+
+   // [NEW] Pass Pre-processor flags INTO the pipeline
+  //  .Special_case_SBI      (Special_case_SB    ),
+  //  .Special_case_dly_SBI  (Special_case_dly_SB),
+  //  .RM_SI                 (RM_dly_S),         // Rounding Mode
+   .Sign_z_SI             (Sign_z_D),         // Sign
+   .Inf_a_SI              (Inf_a_S),
+   .Inf_b_SI              (Inf_b_S),
+   .Zero_a_SI             (Zero_a_S),
+   .Zero_b_SI             (Zero_b_S),
+   .NaN_a_SI              (NaN_a_S),
+   .NaN_b_SI              (NaN_b_S),
+   .SNaN_SI               (SNaN_S),
+
+   // Inputs (Operands)
    .Exp_a_DI              (Exp_a_D            ),
    .Exp_b_DI              (Exp_b_D            ),
    .Mant_a_DI             (Mant_a_D           ),
    .Mant_b_DI             (Mant_b_D           ),
-  //  .Full_precision_SO     (Full_precision_S   ),
-  //  .FP32_SO               (FP32_S             ),
-  //  .FP64_SO               (FP64_S             ),
-  //  .FP16_SO               (FP16_S             ),
-  //  .FP16ALT_SO            (FP16ALT_S          ),
+
+   // Outputs (Data)
+   .Div_enable_SO         (Div_enable_S       ), // Acts as "Valid"
    .Ready_SO              (Ready_SO           ),
-   .Done_SO               (Done_SO            ),
+   .Done_SO               (Done_Goldschmidt         ),
    .Exp_z_DO              (Exp_z_D            ),
-   .Mant_z_DO             (Mant_z_D           )
+   .Mant_z_DO             (Mant_z_D           ),
+
+   // [NEW] Pipeline Outputs (Connect to the new wires)
+  //  .RM_DO                 (RM_pipe_S),
+   .Sign_z_DO             (Sign_z_pipe_S),
+  //  .Special_case_SO       (Special_case_pipe_S),
+   .Inf_a_SO              (Inf_a_pipe_S),
+   .Inf_b_SO              (Inf_b_pipe_S),
+   .Zero_a_SO             (Zero_a_pipe_S),
+   .Zero_b_SO             (Zero_b_pipe_S),
+   .NaN_a_SO              (NaN_a_pipe_S),
+   .NaN_b_SO              (NaN_b_pipe_S),
+   .SNaN_SO               (SNaN_pipe_S)
     );
+//  norm_div_sqrt_mvp   #(
+//   .FpFormat (FpFormat),
+//   .PRECISION_CTRL (PRECISION_CTRL),
+//   .RM_SI    (RM_SI)
+//   ) fpu_norm_U0
+//   (
+//    .Mant_in_DI            (Mant_z_D           ),
+//    .Exp_in_DI             (Exp_z_D            ),
+//    .Sign_in_DI            (Sign_z_D           ),
+//    .Div_enable_SI         (Div_enable_S       ),
+//   //  .Sqrt_enable_SI        (Sqrt_enable_S      ),
+//    .Inf_a_SI              (Inf_a_S            ),
+//    .Inf_b_SI              (Inf_b_S            ),
+//    .Zero_a_SI             (Zero_a_S           ),
+//    .Zero_b_SI             (Zero_b_S           ),
+//    .NaN_a_SI              (NaN_a_S            ),
+//    .NaN_b_SI              (NaN_b_S            ),
+//    .SNaN_SI               (SNaN_S             ),
+//   //  .RM_SI                 (RM_dly_S           ),
+//   //  .Full_precision_SI     (Full_precision_S   ),
+//   //  .FP32_SI               (FP32_S             ),
+//   //  .FP64_SI               (FP64_S             ),
+//   //  .FP16_SI               (FP16_S             ),
+//   //  .FP16ALT_SI            (FP16ALT_S          ),
+//    .Result_DO             (Result_DO          ),
+//    .Fflags_SO             (Fflags_SO          ) //{NV,DZ,OF,UF,NX}
+//    );
 
-
- norm_div_sqrt_mvp   #(
+norm_div_sqrt_mvp   #(
   .FpFormat (FpFormat),
   .PRECISION_CTRL (PRECISION_CTRL),
-  .RM_SI    (RM_SI)
+  .RM_SI    (RM_SI) // Static param, but we override with dynamic input below
   ) fpu_norm_U0
   (
+   .Clk_CI                (Clk_CI             ),
    .Mant_in_DI            (Mant_z_D           ),
    .Exp_in_DI             (Exp_z_D            ),
-   .Sign_in_DI            (Sign_z_D           ),
+
+   // [NEW] Use the Delayed Pipeline Signals
+   .Sign_in_DI            (Sign_z_pipe_S      ), // Was Sign_z_D
    .Div_enable_SI         (Div_enable_S       ),
-  //  .Sqrt_enable_SI        (Sqrt_enable_S      ),
-   .Inf_a_SI              (Inf_a_S            ),
-   .Inf_b_SI              (Inf_b_S            ),
-   .Zero_a_SI             (Zero_a_S           ),
-   .Zero_b_SI             (Zero_b_S           ),
-   .NaN_a_SI              (NaN_a_S            ),
-   .NaN_b_SI              (NaN_b_S            ),
-   .SNaN_SI               (SNaN_S             ),
-  //  .RM_SI                 (RM_dly_S           ),
-  //  .Full_precision_SI     (Full_precision_S   ),
-  //  .FP32_SI               (FP32_S             ),
-  //  .FP64_SI               (FP64_S             ),
-  //  .FP16_SI               (FP16_S             ),
-  //  .FP16ALT_SI            (FP16ALT_S          ),
+   .Inf_a_SI              (Inf_a_pipe_S       ), // Was Inf_a_S
+   .Inf_b_SI              (Inf_b_pipe_S       ), // Was Inf_b_S
+   .Zero_a_SI             (Zero_a_pipe_S      ), // Was Zero_a_S
+   .Zero_b_SI             (Zero_b_pipe_S      ), // Was Zero_b_S
+   .NaN_a_SI              (NaN_a_pipe_S       ), // Was NaN_a_S
+   .NaN_b_SI              (NaN_b_pipe_S       ), // Was NaN_b_S
+   .SNaN_SI               (SNaN_pipe_S        ), // Was SNaN_S
+   .Done_SI               (Done_Goldschmidt   ),
+   
+   // Note: Your original norm module might not have had an RM input port exposed 
+   // in the instantiation list in Source 4, but if your norm module needs dynamic 
+   // rounding mode, connect .RM_SI(RM_pipe_S) here.
+   // Based on Source 4, it looks like RM is passed via parameter or not used dynamically 
+   // in the instantiation list shown. If you updated norm_div_sqrt_mvp to take 
+   // dynamic rounding, add: .RM_SI(RM_pipe_S),
+   .Done_SO               (Done_SO             ),
    .Result_DO             (Result_DO          ),
    .Fflags_SO             (Fflags_SO          ) //{NV,DZ,OF,UF,NX}
    );

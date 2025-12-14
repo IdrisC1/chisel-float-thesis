@@ -56,7 +56,7 @@ module norm_div_sqrt_mvp #(
   (//Inputs
   //  input logic [C_MANT_FP64+4:0]                Mant_in_DI,  // Include the needed 4-bit for rounding and hidden bit
   //  input logic signed [C_EXP_FP64+1:0]          Exp_in_DI,
-   input logic                                  Clk_CI,
+   input logic                                  clk,
    input logic [MAN_BITS+4:0]                   Mant_in_DI,  // Include the needed 4-bit for rounding and hidden bit
    input logic signed [EXP_BITS+1:0]            Exp_in_DI,
    input logic                                  Sign_in_DI,
@@ -84,7 +84,7 @@ module norm_div_sqrt_mvp #(
    );
 
 
-  // always @( posedge Clk_CI ) begin //Normalization takes one clock cycle, then output is ok
+  // always @( posedge clk ) begin //Normalization takes one clock cycle, then output is ok
   //   Done_SO <= Done_SI;
   // end
   assign Done_SO = Done_SI;
@@ -117,7 +117,7 @@ module norm_div_sqrt_mvp #(
   // logic  [C_EXP_FP32+1:0]                       Exp_Max_RS_FP32_D;
   // logic  [C_EXP_FP16+1:0]                       Exp_Max_RS_FP16_D;
   // logic  [C_EXP_FP16ALT+1:0]                    Exp_Max_RS_FP16ALT_D;
-  logic  [EXP_BITS+1:0]                         Exp_Max_RS_D;
+  // logic  [EXP_BITS+1:0]                         Exp_Max_RS_D;
 
 
   //
@@ -125,7 +125,7 @@ module norm_div_sqrt_mvp #(
   // assign Exp_Max_RS_FP32_D=Exp_in_DI[C_EXP_FP32:0]+C_MANT_FP32+1; // to check exponent after (C_MANT_FP32+1)-bit >> when Exp_in_DI is negative
   // assign Exp_Max_RS_FP16_D=Exp_in_DI[C_EXP_FP16:0]+C_MANT_FP16+1; // to check exponent after (C_MANT_FP16+1)-bit >> when Exp_in_DI is negative
   // assign Exp_Max_RS_FP16ALT_D=Exp_in_DI[C_EXP_FP16ALT:0]+C_MANT_FP16ALT+1; // to check exponent after (C_MANT_FP16ALT+1)-bit >> when Exp_in_DI is negative
-  assign Exp_Max_RS_D= Exp_in_DI[EXP_BITS:0]+MAN_BITS+1;
+  // assign Exp_Max_RS_D= Exp_in_DI[EXP_BITS:0]+MAN_BITS+1;
 
   // logic  [C_EXP_FP64+1:0]                       Num_RS_D;
   // assign Num_RS_D=~Exp_in_DI+1+1;            // How many right shifts(RS) are needed to generate a denormal number? >> is need only when Exp_in_DI is negative
@@ -140,6 +140,10 @@ module norm_div_sqrt_mvp #(
 
 
 
+
+
+
+
 //
   // logic [C_EXP_FP64+1:0]                        Exp_subOne_D;
   logic [EXP_BITS-1:0]                          Exp_subOne_D;
@@ -149,7 +153,7 @@ module norm_div_sqrt_mvp #(
    logic [1:0]                                  Mant_lower_D;
    logic                                        Mant_sticky_bit_D;
   //  logic [C_MANT_FP64+4:0]                      Mant_forround_D;
-  logic [MAN_BITS+4:0]                      Mant_forround_D;
+  logic [MAN_BITS+4:0]                          Mant_forround_D;
 
    always_comb
      begin
@@ -326,12 +330,14 @@ module norm_div_sqrt_mvp #(
         end
 
       // else if(Exp_in_DI[C_EXP_FP64+1])    //minus              //consider format
-      else if(Exp_in_DI[EXP_BITS+1])    //minus              //consider format
+      // If the exponent's sign bit is set (negative exponent), the value is subnormal and requires denormalization by right-shifting the mantissa.
+      // Negative exponents indicate the result is too small to be represented normally, so the mantissa is right-shifted to form a subnormal (denormalized) number.
+      else if(Exp_in_DI[EXP_BITS+1])    // negative exponent: triggers denormalization
         begin
           Div_Zero_S=1'b0;
           Exp_OF_S=1'b0;
           Exp_UF_S=1'b1;
-          // Mant_res_norm_D={Mant_RS_D[C_MANT_FP64:0]};
+          Mant_res_norm_D=Mant_RS_D[MAN_BITS:0];
           Mant_res_norm_D={Mant_RS_D[MAN_BITS:0]};
           Exp_res_norm_D='0;
           // Mant_forround_D={Mant_forsticky_D[C_MANT_FP64+4:0]};   //??
@@ -367,6 +373,7 @@ module norm_div_sqrt_mvp #(
               Exp_res_norm_D=Exp_subOne_D;
               // Mant_forround_D={Mant_in_DI[2:0],{(C_MANT_FP64+2){1'b0}}};
               Mant_forround_D={Mant_in_DI[2:0],{(MAN_BITS+2){1'b0}}};
+              // Mant_forround_D={Mant_in_DI[3:0],{(MAN_BITS+1){1'b0}}};
               Sign_res_D=Sign_in_DI;
               NV_OP_S = 1'b0;
             end
@@ -406,10 +413,11 @@ module norm_div_sqrt_mvp #(
            Exp_res_norm_D=Exp_in_DI[EXP_BITS-1:0];
           //  Mant_forround_D={Mant_in_DI[3:0],{(C_MANT_FP64+1){1'b0}}};
            Mant_forround_D={Mant_in_DI[3:0],{(MAN_BITS+1){1'b0}}};
+          //  Mant_forround_D={Mant_in_DI[4:0],{(MAN_BITS){1'b0}}};
+           Sign_res_D=Sign_in_DI;
            Sign_res_D=Sign_in_DI;
            NV_OP_S = 1'b0;
         end
-
       else                                   //normal numbers with 0.1XX
          begin
            Div_Zero_S=1'b0;
@@ -518,8 +526,9 @@ module norm_div_sqrt_mvp #(
             // Mant_roundUp_S = Mant_lower_D[1] && ((Mant_lower_D[0] | Mant_sticky_bit_D )| ( ((FpFormat == fpnew_pkg_snax::FP32)&&Mant_upper_D[C_MANT_FP64-C_MANT_FP32]) | ((FpFormat == fpnew_pkg_snax::FP64)&&Mant_upper_D[0]) | ((FpFormat == fpnew_pkg_snax::FP16)&&Mant_upper_D[C_MANT_FP64-C_MANT_FP16]) | ((FpFormat == fpnew_pkg_snax::FP16ALT)&&Mant_upper_D[C_MANT_FP64-C_MANT_FP16ALT]) ) );
             // Mant_roundUp_S = Mant_lower_D[1] && ((Mant_lower_D[0] | Mant_sticky_bit_D )| ( ((FpFormat == fpnew_pkg_snax::FP32)&&Mant_upper_D[0]) | ((FpFormat == fpnew_pkg_snax::FP64)&&Mant_upper_D[0]) | ((FpFormat == fpnew_pkg_snax::FP16)&&Mant_upper_D[0]) | ((FpFormat == fpnew_pkg_snax::FP16ALT)&&Mant_upper_D[0])));
             // Mant_roundUp_S = Mant_in_DI[3] ; //The above is not needed since now use a different divison algorithm ;
-            Mant_roundUp_S = Mant_lower_D[1] && (Mant_upper_D[0] || Mant_sticky_bit_D);
-            // Mant_roundUp_S = Mant_lower_D[1] && (Mant_sticky_bit_D || Mant_lower_D[0] || Mant_upper_D[0]);
+            Mant_roundUp_S = Mant_lower_D[1] && (Mant_upper_D[0] || Mant_sticky_bit_D); // Round to nearest even -> if lsb is 1 and the bit you cut off is alsop 1 then round up
+            
+            // Mant_roundUp_S = Mant_lower_D[1] && (Mant_sticky_bit_D || Mant_lower_D[0]) |(Mant_upper_D[0]);
             // if (Mant_lower_D[1]==1'b0 && Mant_sticky_bit_D==1'b0) begin
             //   Mant_roundUp_S = 1'b0;
             // end

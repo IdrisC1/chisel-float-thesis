@@ -132,10 +132,11 @@
 
 module nrbd_nrsc_mvp #(
   parameter fpnew_pkg_snax::fp_format_e FpFormat = fpnew_pkg_snax::FP32,
-  parameter logic [C_PC-1:0] PRECISION_CTRL = 'h00, 
+//   parameter logic [C_PC-1:0] PRECISION_CTRL = 'h00, 
   // parameter logic [2:0] Iteration_unit_num_S  = 3'b011, // Unused in Goldschmidt but kept for interface compatibility
   
   // Goldschmidt Config
+  parameter int unsigned GUARD_BITS = 11,
   parameter int ROM_ADDR_BITS = 8, 
 
   parameter int unsigned EXP_BITS = fpnew_pkg_snax::exp_bits(FpFormat),
@@ -143,7 +144,7 @@ module nrbd_nrsc_mvp #(
   parameter int unsigned WIDTH    = fpnew_pkg_snax::fp_width(FpFormat)
  )
   (//Input
-   input logic                                 Clk_CI,
+   input logic                                 clk,
    input logic                                 Rst_RBI,
    input logic                                 Div_start_SI,
    input logic                                 Start_SI, // General start
@@ -160,8 +161,8 @@ module nrbd_nrsc_mvp #(
    // Normalized Inputs
    input logic [MAN_BITS:0]                    Mant_a_DI,
    input logic [MAN_BITS:0]                    Mant_b_DI,
-   input logic [EXP_BITS-1:0]                    Exp_a_DI,
-   input logic [EXP_BITS-1:0]                    Exp_b_DI,
+   input logic [EXP_BITS:0]                    Exp_a_DI,
+   input logic [EXP_BITS:0]                    Exp_b_DI,
 
   // Outputs to Normalizer
    output logic                                Div_enable_SO, // Used as "Valid" for norm
@@ -189,7 +190,7 @@ module nrbd_nrsc_mvp #(
   logic start_dly_q;
 
   // Delay the start signal by 1 cycle to match Pre-process data latency
-  always_ff @(posedge Clk_CI or negedge Rst_RBI) begin
+  always_ff @(posedge clk or negedge Rst_RBI) begin
       if (!Rst_RBI) begin
           start_dly_q <= 1'b0;
       end else if (Kill_SI) begin
@@ -206,11 +207,11 @@ module nrbd_nrsc_mvp #(
   
   fp_div_Goldschmidt #(
       .FpFormat     (FpFormat),
-      .PRECISION_CTRL ('h00), 
-      .GUARD_BITS   (10),
+    //   .PRECISION_CTRL ('h00), 
+      .GUARD_BITS   (GUARD_BITS),
       .ROM_ADDR_BITS(ROM_ADDR_BITS)
   ) goldschmidt_core (
-      .clk_i          (Clk_CI),
+      .clk          (clk),
       .rst_ni         (Rst_RBI),
       .kill_i         (Kill_SI),
       .start_i        (start_dly_q), 

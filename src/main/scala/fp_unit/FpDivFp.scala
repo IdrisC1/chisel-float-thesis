@@ -24,12 +24,13 @@ class FpDivFpBlackBox(
     // "TagType" -> "logic",
     "PRECISION_CTRL" -> RawParam("'h00"),
     "Iteration_unit_num_S" -> RawParam("3'b111"), // Use 8 units
-    "ROM_ADDR_BITS" -> RawParam("8"),
-    "RM_SI"       -> RawParam("3'b000")
+    "ROM_ADDR_BITS" -> RawParam("4"),
+    "GUARD_BITS" -> RawParam("24"),     // 4 guard bits for sufficient precision
+    "RM_SI"       -> RawParam("3'b000") //round mode
 )) with HasBlackBoxResource {
 
     val io = IO(new Bundle {
-        val clk_i = Input(Clock())
+        val clk = Input(Clock())
         val rst_ni = Input(Bool())
         val div_valid    = Input(Bool())
         // Input signals
@@ -53,11 +54,11 @@ class FpDivFpBlackBox(
     addResource("/common_block/fpnew_rounding.sv")
     addResource("/common_block/lzc.sv")
     addResource("/common_block/registers.sv")
+    addResource("/Division/defs_div_sqrt_mvp.sv")
     
     // Division specific files
-    addResource("/Division/defs_div_sqrt_mvp.sv")
     addResource("/Division/fp_div_Goldschmidt.sv")
-    addResource("/Division/control_mvp.sv")
+    // addResource("/Division/control_mvp.sv")
     addResource("/Division/preprocess_mvp.sv")
     addResource("/Division/nrbd_nrsc_mvp.sv")
     addResource("/Division/iteration_div_sqrt_mvp.sv")
@@ -108,7 +109,7 @@ class FpDivFp(
     ))
 
 
-    fpdivfp.io.clk_i := clock
+    fpdivfp.io.clk := clock
     fpdivfp.io.rst_ni := !reset.asBool
 
 

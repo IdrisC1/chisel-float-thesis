@@ -52,15 +52,15 @@
 
 module fp_div_Goldschmidt #(
     parameter fpnew_pkg_snax::fp_format_e FpFormat = fpnew_pkg_snax::FP32,
-    parameter int ROM_ADDR_BITS = 8,  // Larger ROM = Fewer Pipeline Stages
-    parameter int GUARD_BITS    = 3,  // Internal precision buffer
-    parameter logic [C_PC-1:0] PRECISION_CTRL = 'h00, 
+    parameter int ROM_ADDR_BITS = 5,  // Larger ROM = Fewer Pipeline Stages
+    parameter int GUARD_BITS    = 11,  // Internal precision buffer
+    // parameter logic [C_PC-1:0] PRECISION_CTRL = 'h00, 
     
     // Extracted parameters
     localparam int unsigned EXP_BITS = fpnew_pkg_snax::exp_bits(FpFormat),
     localparam int unsigned MAN_BITS = fpnew_pkg_snax::man_bits(FpFormat)
 )(
-    input  logic                   clk_i,
+    input  logic                   clk,
     input  logic                   rst_ni,
     input  logic                   kill_i,      // Flush pipeline
     input  logic                   start_i,     // Valid input
@@ -119,41 +119,38 @@ module fp_div_Goldschmidt #(
     localparam int NUM_STAGES = calc_needed_stages(ROM_ADDR_BITS);
     localparam int ROM_DEPTH  = 1 << ROM_ADDR_BITS;
 
-    
     // =========================================================================
     // 2. ROM Generation (Initial Estimate of 1/D)
     // =========================================================================
-    logic [WIDTH-1:0] rcp_rom [0 : ROM_DEPTH-1];
     
-    // Generate 1/x lookup table
+    // Determine safe calculation width for 64-bit integer
+    localparam int CALC_WIDTH   = (WIDTH > 64) ? 64 : WIDTH;
+    localparam int SHIFT_AMOUNT = WIDTH - CALC_WIDTH;
+
+    logic [WIDTH-1:0] rcp_rom [0 : ROM_DEPTH-1];
+
     initial begin
-        real x, inv, scale, scaled_inv; // Added scaled_inv
-        longint unsigned val_int; 
+        real x, inv, scale, scaled_inv;
+        longint unsigned val_int;
         
-        // Calculate scale factor: 2^FRAC_BITS (Fix for 32-bit overflow)
-        scale = $pow(2.0, FRAC_BITS);
+        // Scale factor uses the Safe CALC_WIDTH
+        scale = $pow(2.0, CALC_WIDTH - 2);
 
         for (int i = 0; i < ROM_DEPTH; i++) begin
             x = 1.0 + ($itor(i) / $itor(ROM_DEPTH));
             inv = 1.0 / x;
-
-            // 1. Calculate the scaled value using high-precision real arithmetic
-            scaled_inv = inv * scale;
-
-            // 2. Assign the scaled real value directly to the 64-bit longint variable.
-            //    This is often more reliable than $rtoi() for large numbers 
-            //    in SystemVerilog tools that support the direct real-to-longint assignment.
-            val_int = scaled_inv; 
             
-            // 3. Handle potential high-bit truncation if simulator doesn't fully support 64-bit real assignment 
-            //    (though it should here, as it's the safest method without tool-specific pragmas).
-
-            // Store in ROM, slicing down to WIDTH
-            rcp_rom[i] = val_int[WIDTH-1:0];
+            scaled_inv = inv * scale;
+            
+            // Round-to-nearest
+            val_int = scaled_inv + 0.5; 
+            
+            // [FIX] Slicing is now guaranteed safe by localparams.
+            // val_int is 64 bits. CALC_WIDTH is max 60.
+            // We take the top bits and pad zeros at the bottom.
+            rcp_rom[i] = {val_int[CALC_WIDTH-1:0], {SHIFT_AMOUNT{1'b0}}};
         end
     end
-
-
 
     logic [WIDTH-1:0] f0_val;
     // Use top bits of Denominator Mantissa for lookup (excluding hidden bit)
@@ -194,19 +191,20 @@ module fp_div_Goldschmidt #(
     // but here we calculate the difference.
 
     logic [EXP_BITS+1:0] exp_calc_d;
-    assign exp_calc_d = {1'b0, exp_a_i} - {1'b0, exp_b_i} + C_BIAS_AONE;
+    // assign exp_calc_d = {1'b0, exp_a_i} - {1'b0, exp_b_i} + C_BIAS_AONE;
+    assign exp_calc_d = $signed(exp_a_i) - $signed(exp_b_i) + $signed(C_BIAS_AONE);
     
     //For division, exponent=(Exp_a_D-LZ1)-(Exp_b_D-LZ2)+BIAS
     //For square root, exponent=(Exp_a_D-LZ1)/2+(Exp_a_D-LZ1)%2+C_HALF_BIAS
     //For exponent, in preprorces module, (Exp_a_D-LZ1) and (Exp_b_D-LZ2) have been processed with the corresponding process for denormal numbers.
+    
+    // logic [EXP_BITS+1:0] Exp_add_a_D, Exp_add_b_D, Exp_add_c_D;
+    // assign Exp_add_a_D = {exp_a_i[EXP_BITS],exp_a_i[EXP_BITS],exp_a_i};
+    // assign Exp_add_b_D = {~exp_b_i[EXP_BITS],~exp_b_i[EXP_BITS],~exp_b_i}; // 2's complement 
+    // assign Exp_add_c_D = C_BIAS_AONE; // Add the bias 
+    // assign exp_calc_d  = {Exp_add_a_D + Exp_add_b_D + Exp_add_c_D};
 
-
-    //   assign Exp_add_a_D = {Exp_num_DI[EXP_BITS],Exp_num_DI[EXP_BITS],Exp_num_DI};
-    //   assign Exp_add_b_D = {~Exp_den_DI[EXP_BITS],~Exp_den_DI[EXP_BITS],~Exp_den_DI}; // 2's complement 
-    //   assign Exp_add_c_D = {Div_start_dly_S?{{C_BIAS_AONE}}:{{C_HALF_BIAS}}}; // Add the bias 
-    //   assign Exp_result_prenorm_DN  = (Start_dly_S)?{Exp_add_a_D + Exp_add_b_D + Exp_add_c_D}:Exp_result_prenorm_DP;
-
-    always_ff @(posedge clk_i or negedge rst_ni) begin
+    always_ff @(posedge clk or negedge rst_ni) begin
         if (!rst_ni) begin
             n_pipe[0]    <= '0;
             d_pipe[0]    <= '0;
@@ -247,7 +245,7 @@ module fp_div_Goldschmidt #(
                 .WIDTH(WIDTH), 
                 .FRAC_BITS(FRAC_BITS)
             ) stage_inst (
-                .clk_i   (clk_i),
+                .clk   (clk),
                 .rst_ni  (rst_ni),
                 .kill_i  (kill_i),
                 .n_in    (n_pipe[i]),
@@ -259,7 +257,7 @@ module fp_div_Goldschmidt #(
             );
             
             // Shift metadata
-            always_ff @(posedge clk_i or negedge rst_ni) begin
+            always_ff @(posedge clk or negedge rst_ni) begin
                 if(!rst_ni) meta_pipe[i+1] <= '0;
                 else if(kill_i) meta_pipe[i+1].valid <= 1'b0;
                 else meta_pipe[i+1] <= meta_pipe[i];
@@ -339,6 +337,8 @@ module fp_div_Goldschmidt #(
     // endgenerate
     // [CRITICAL FIX] Sticky Bit Propagation
     // We must OR all the bits we are dropping into the LSB of the output.
+
+
     generate
         localparam int OUTPUT_WIDTH = MAN_BITS + 5; // Hidden + Mant + GRS
         localparam int AVAILABLE_BITS = WIDTH - 1;  // Bits from Hidden down to 0
@@ -349,7 +349,6 @@ module fp_div_Goldschmidt #(
             localparam int MSB_INDEX = WIDTH - 2;
             localparam int LSB_INDEX = WIDTH - 2 - OUTPUT_WIDTH + 1;
             
-            // Sticky Bit = OR of all bits below LSB_INDEX
             logic sticky_bit;
             assign sticky_bit = | final_n[LSB_INDEX - 1 : 0];
 
@@ -358,10 +357,9 @@ module fp_div_Goldschmidt #(
                 final_n[MSB_INDEX : LSB_INDEX + 1], 
                 final_n[LSB_INDEX] | sticky_bit 
             };
-            
         end else begin : gen_pad
-            // We are short bits (should not happen if GUARD_BITS >= 5)
-            // Pad with zeros. Sticky is implicitly 0.
+            // We are short bits - all bits from final_n are used
+            // No bits are dropped, so sticky bit is 0
             assign mant_res_o = {final_n[WIDTH-2 : 0], {(OUTPUT_WIDTH - AVAILABLE_BITS){1'b0}} };
         end
     endgenerate
@@ -395,7 +393,7 @@ module goldschmidt_stage_opt #(
     parameter int WIDTH = 57,
     parameter int FRAC_BITS = 55
 )(
-    input  logic             clk_i,
+    input  logic             clk,
     input  logic             rst_ni,
     input  logic             kill_i,
     input  logic [WIDTH-1:0] n_in,
@@ -409,23 +407,25 @@ module goldschmidt_stage_opt #(
     logic [2*WIDTH-1:0] d_mult_full;
     logic [WIDTH-1:0]   n_sliced, d_sliced;
     logic [WIDTH-1:0]   f_next_comb;
-    localparam logic [WIDTH-1:0] TWO_FIXED = (1 << (FRAC_BITS + 1));
+    localparam logic [WIDTH-1:0] TWO_FIXED = (1 << (FRAC_BITS + 1)); //represent 2.0
 
     always_comb begin
         // 1. Independent Multiplications
         n_mult_full = n_in * f_in;
         d_mult_full = d_in * f_in;
         
-        // 2. Fixed Point Slicing (Maintain Q2.F format)
+        // // 2. Fixed Point Slicing (Maintain Q2.F format)
         n_sliced = n_mult_full[2*FRAC_BITS + 1 : FRAC_BITS];
         d_sliced = d_mult_full[2*FRAC_BITS + 1 : FRAC_BITS];
+        // n_sliced = n_mult_full[2*FRAC_BITS + 1 : FRAC_BITS] + n_mult_full[FRAC_BITS - 1];
+        // d_sliced = d_mult_full[2*FRAC_BITS + 1 : FRAC_BITS] + d_mult_full[FRAC_BITS - 1];
 
         
         // 3. Convergence Factor: F = 2.0 - D
         f_next_comb = TWO_FIXED - d_sliced;
     end
 
-    always_ff @(posedge clk_i or negedge rst_ni) begin
+    always_ff @(posedge clk or negedge rst_ni) begin
         if (!rst_ni) begin
             n_out <= '0; d_out <= '0; f_out <= '0;
         end else if (kill_i) begin

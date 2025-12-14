@@ -5,6 +5,7 @@ module fp_div #(
   parameter fpnew_pkg_snax::fp_format_e FpFormat   = fpnew_pkg_snax::fp_format_e'(2),  //FP16 
   parameter logic [2:0] Iteration_unit_num_S  = 3'b011, //Default 4 
   parameter int unsigned ROM_ADDR_BITS = 8, //Number of bits in ROM
+  parameter int unsigned GUARD_BITS = 11, //Number of guard bits to use in calculation
 
   // Round mode
   // parameter fpnew_pkg_snax::roundmode_e RM_SI = fpnew_pkg_snax::RNE
@@ -14,7 +15,7 @@ module fp_div #(
   parameter int unsigned MAN_BITS = fpnew_pkg_snax::man_bits(FpFormat),
   parameter int unsigned WIDTH = fpnew_pkg_snax::fp_width(FpFormat)
 ) (
-    input  logic clk_i,
+    input  logic clk,
     input  logic rst_ni,
     input  logic div_valid,
     input  logic [WIDTH-1:0] operand_a_DI,
@@ -29,10 +30,12 @@ module fp_div #(
     .FpFormat (FpFormat),
     .PRECISION_CTRL (PRECISION_CTRL),
     .Iteration_unit_num_S (Iteration_unit_num_S),
-    .RM_SI    (RM_SI)
-    
+    .RM_SI    (RM_SI),
+    .ROM_ADDR_BITS (ROM_ADDR_BITS),
+    .GUARD_BITS (GUARD_BITS)
+
     ) i_divsqrt_lei (
-   .Clk_CI           ( clk_i                               ),
+   .clk           ( clk                               ),
    .Rst_RBI          ( rst_ni                              ),
    .Div_start_SI     ( div_valid                           ),
    .Operand_a_DI     ( operand_a_DI              ),

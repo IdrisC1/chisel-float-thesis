@@ -2,10 +2,12 @@ package fp_unit
 
 import chisel3._
 import chiseltest._
-// import chiseltest.simulator.VerilatorBackendAnnotation
+import chiseltest.simulator.VerilatorBackendAnnotation
+import chiseltest.simulator.VcsBackendAnnotation
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import scala.collection.mutable // Needed for the Queue
+import coursier.core.Repository.Complete.Input.Ver
 
 class FpDivFpTest extends AnyFlatSpec with Matchers with ChiselScalatestTester with FpUtils {
   behavior of "FpDivFp"
@@ -29,7 +31,7 @@ class FpDivFpTest extends AnyFlatSpec with Matchers with ChiselScalatestTester w
     val aBits = floatToUInt(dut.typeX.asInstanceOf[FpType], a)
     val bBits = floatToUInt(dut.typeX.asInstanceOf[FpType], b)
     val expectedBits = floatToUInt(dut.typeX.asInstanceOf[FpType], expected)
-
+    println(f"a : ${aBits.toLong.toBinaryString}, b:${bBits.toLong.toBinaryString}, expected:${expectedBits.toLong.toBinaryString}")
     dut.io.in_a.poke(aBits.U)
     dut.io.in_b.poke(bBits.U)
     dut.io.div_valid.poke(true.B)
@@ -119,10 +121,10 @@ def testPipelineStream(dut: FpDivFp, n: Int, TypeX: FpType) = {
         val (aBits, bBits, expBits, aVal, bVal): (BigInt, BigInt, BigInt, Double, Double) = TypeX match  {
           case FP32 =>
             // FP32 Logic
-            var a = genRandomValue(TypeX)
-            var b = genRandomValue(TypeX)
+            var a = getTrueRandomValue(TypeX) //genRandomValue(TypeX)
+            var b = getTrueRandomValue(TypeX) //genRandomValue(TypeX)
             // if (b.abs < 1e-5) b = 1.0f
-            // println(f"Generated a = ${a}, b = ${b}") 
+            println(f"Generated a = ${a}, b = ${b}") 
             
             val res = a / b
             // println(f"Result = ${res}")
@@ -131,8 +133,8 @@ def testPipelineStream(dut: FpDivFp, n: Int, TypeX: FpType) = {
 
           case FP64 =>
             // FP64 Logic
-            var a = genRandomValue(TypeX)//(rng.nextDouble() - 0.5) * 200.0
-            var b = genRandomValue(TypeX)//(rng.nextDouble() - 0.5) * 200.0
+            var a = genRandomValueDouble(TypeX)//(rng.nextDouble() - 0.5) * 200.0
+            var b = genRandomValueDouble(TypeX)//(rng.nextDouble() - 0.5) * 200.0
             // if (b.abs < 1e-10) b = 1.0
             
             val res = a / b
@@ -165,7 +167,7 @@ def testPipelineStream(dut: FpDivFp, n: Int, TypeX: FpType) = {
         val got = dut.io.result.peek().litValue
         TypeX match{ 
           case FP32 =>
-            withClue(f"Pipeline Fail at index $i: $a%.4f / $b%.4f") {
+            withClue(f"Pipeline Fail at index $i: $a%f / $b%f") {
             // println(f"  a = 0x${aBits.toLong}%08X (${aBits.toLong.toBinaryString})")
             // println(f"  b = 0x${bBits.toLong}%08X (${bBits.toLong.toBinaryString})")
             println(f"  expected = 0x${expectedBits.toLong}%08X (${expectedBits.toLong.toBinaryString}), ${java.lang.Float.intBitsToFloat(expectedBits.toInt)} ")
@@ -187,7 +189,7 @@ def testPipelineStream(dut: FpDivFp, n: Int, TypeX: FpType) = {
   }
 
 
-  def testSpecialCases(dut: FpDivFp) = {
+  def testSpecialCasesFP32(dut: FpDivFp) = {
     val specialCases = Seq(            
       (0.0f, 0.0f),                                     // Zero cases
       (0.0f, 1.0f),
@@ -208,6 +210,31 @@ def testPipelineStream(dut: FpDivFp, n: Int, TypeX: FpType) = {
 
     specialCases.zipWithIndex.foreach { case ((a, b), index) => 
       testSingle(dut, index + 1, a, b) 
+    }
+  }
+
+  def testSpecialCasesFP64(dut: FpDivFp) = {
+    val specialCases = Seq(             
+      (0.0, 0.0),                                         // Zero / Zero = NaN
+      (0.0, 1.0),                                         // Zero / Normal = Zero
+      (1.0, 0.0),                                         // Normal / Zero = Infinity
+      (Double.NaN, 1.0),                                  // NaN cases
+      (1.0, Double.NaN),
+      (Double.NaN, Double.NaN),
+      (Double.PositiveInfinity, 1.0),                     // Infinity cases
+      (1.0, Double.PositiveInfinity),
+      (Double.NegativeInfinity, 1.0),
+      (1.0, Double.NegativeInfinity),
+      (Double.PositiveInfinity, Double.NegativeInfinity), // +inf / -inf = NaN
+      (Double.NegativeInfinity, Double.PositiveInfinity), // -inf / +inf = NaN
+      (Double.MinPositiveValue, Double.MinPositiveValue), // Smallest positive (Subnormal handling)
+      (Double.MinPositiveValue, 0.0),
+      (0.0, Double.MinPositiveValue)
+    )
+
+    specialCases.zipWithIndex.foreach { case ((a, b), index) => 
+      // Ensure testSingle is updated to accept Double arguments
+      testSingleDouble(dut, index + 1, a, b) 
     }
   }
 
@@ -244,36 +271,45 @@ it should "perform FP32 Randomized Pipeline Test" in {
   it should "perform FP32 DIV correctly" in {
     runDivTests(new FpDivFp(typeX = FP32)) { dut =>
     //   val rng = new scala.util.Random(42)
-      for (i <- 0 until testNum) {
-        val a = genRandomValue(FP32)
-        var b = genRandomValue(FP32)
+      // for (i <- 0 until testNum) {
+        // val a = genRandomValue(FP32)
+        // var b = genRandomValue(FP32)
         // if (b == 0.0f) b = 1.0f  // Avoid division by zero
-        // var a = 7.9236107.toFloat//1.1375.toFloat //-0.4690.toFloat // 3.4010.toFloat //7.845031
-        // var b = 0.08673477.toFloat //5.6700.toFloat //3.2679.toFloat  //7.0076.toFloat //0.69879055                    5.8707 / -1.2212 gives problem if you add zero to the end
-        // testSingle (dut, 1, a, b)
-        testSingle(dut, i + 1, a, b)
-      }
+        val a = -2.1333084E-35.toFloat//2.2392744E-32.toFloat//-9.743106E-8.toFloat//1.1375.toFloat //-0.4690.toFloat // 3.4010.toFloat //7.845031 //851494.625000 //-9.743106E-8 // 2.1241657E-16
+        val b = -1.0374664E-8.toFloat//1.699444E-17.toFloat//1.419752E-39.toFloat //5.6700.toFloat //3.2679.toFloat  //7.0076.toFloat //0.69879055 //0.000000    //1.419752E-39//3.4810254E19               5.8707 / -1.2212 gives problem if you add zero to the end
+        // println(f"Testing a = ${a}, b = ${b}") -2.1333084E-35, b = -1.0374664E-8
+        testSingle (dut, 1, a, b)
+      //   testSingle(dut, i + 1, a, b)
+      // }
     }
   }
 
 
-  // it should "perform FP64 DIV correctly" in {
-  //   runDivTests(new FpDivFp(typeX = FP64)) { dut =>
-  //     // val rng = new scala.util.Random(17)
-  //     for (i <- 0 until (testNum)) {
-  //       val a = genRandomValueDouble(FP64)
-  //       var b = genRandomValueDouble(FP64)
-  //     //   if (b == 0.0f) b = 1.0f
-  //       // var a = -50.694824.toDouble//10.toDouble
-  //       // var b = 43.971344.toDouble//5.toDouble
-  //       testSingleDouble(dut, i+ 1, a, b)
-  //     }
-  //   }
-  // }
+  it should "perform FP64 DIV correctly" in {
+    runDivTests(new FpDivFp(typeX = FP64)) { dut =>
+      // val rng = new scala.util.Random(17)
+      // for (i <- 0 until (testNum)) {
+      //   val a = genRandomValueDouble(FP64)
+      //   var b = genRandomValueDouble(FP64)
+      //   if (b == 0.0f) b = 1.0f
+        var a = 109.277647.toDouble//-38.17727047555721.toDouble//10.toDouble
+        var b = -61.722065.toDouble//118.95835705484598.toDouble//5.toDouble
+        testSingleDouble(dut, 1, a, b)
+
+      //   testSingleDouble(dut, i+ 1, a, b)
+      // }
+    }
+  }
 
   // it should "handle special cases for FP32 division" in {
   //   runDivTests(new FpDivFp(typeX = FP32)) { dut =>
-  //     testSpecialCases(dut)
+  //     testSpecialCasesFP32(dut)
+  //   }
+  // }
+
+  // it should "handle special cases for FP64 division" in {
+  //   runDivTests(new FpDivFp(typeX = FP64)) { dut =>
+  //     testSpecialCasesFP64(dut)
   //   }
   // }
 

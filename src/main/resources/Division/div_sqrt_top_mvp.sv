@@ -32,7 +32,7 @@
 //                 control for special cases                                  //
 ////////////////////////////////////////////////////////////////////////////////
 
-// import defs_div_sqrt_mvp::*;
+import defs_div_sqrt_mvp::*;
 
 module div_sqrt_top_mvp
   #(
@@ -41,13 +41,14 @@ module div_sqrt_top_mvp
     parameter logic [C_RM-1:0] RM_SI = 3'h0,
     parameter logic [2:0] Iteration_unit_num_S  = 3'b011, //Default 4 (encoded in 3 bits)
     parameter int unsigned ROM_ADDR_BITS = 8, //Number of bits stored in ROM higer = larger mem, less iterations
+    parameter int unsigned GUARD_BITS = 11, //Number of guard bits to use in calculation
 
     parameter int unsigned EXP_BITS = fpnew_pkg_snax::exp_bits(FpFormat),
     parameter int unsigned MAN_BITS = fpnew_pkg_snax::man_bits(FpFormat),
     parameter int unsigned WIDTH = fpnew_pkg_snax::fp_width(FpFormat)
   )
   (//Input
-   input logic                            Clk_CI,
+   input logic                            clk,
    input logic                            Rst_RBI,
    input logic                            Div_start_SI,
   //  input logic                            Sqrt_start_SI,
@@ -132,7 +133,7 @@ module div_sqrt_top_mvp
   .RM_SI    (RM_SI)
   ) preprocess_U0
  (
-   .Clk_CI                (Clk_CI             ),
+   .clk                (clk             ),
    .Rst_RBI               (Rst_RBI            ),
    .Div_start_SI          (Div_start_SI       ),
   //  .Sqrt_start_SI         (Sqrt_start_SI      ),
@@ -195,11 +196,12 @@ module div_sqrt_top_mvp
 
 nrbd_nrsc_mvp    #(
   .FpFormat (FpFormat),
-  .PRECISION_CTRL (PRECISION_CTRL),
+  // .PRECISION_CTRL (PRECISION_CTRL),
+  .GUARD_BITS(GUARD_BITS),
   .ROM_ADDR_BITS(ROM_ADDR_BITS)
   ) nrbd_nrsc_U0
   (
-   .Clk_CI                (Clk_CI             ),
+   .clk                (clk             ),
    .Rst_RBI               (Rst_RBI            ),
    .Div_start_SI          (Div_start_SI       ),
    .Start_SI              (Start_S            ),
@@ -277,7 +279,7 @@ norm_div_sqrt_mvp   #(
   .RM_SI    (RM_SI) // Static param, but we override with dynamic input below
   ) fpu_norm_U0
   (
-   .Clk_CI                (Clk_CI             ),
+   .clk                (clk             ),
    .Mant_in_DI            (Mant_z_D           ),
    .Exp_in_DI             (Exp_z_D            ),
 

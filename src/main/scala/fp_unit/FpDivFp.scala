@@ -23,9 +23,9 @@ class FpDivFpBlackBox(
     // "PipeConfig" -> fpnew_pkg_snax::AFTER,
     // "TagType" -> "logic",
     "PRECISION_CTRL" -> RawParam("'h00"),
-    "Iteration_unit_num_S" -> RawParam("3'b111"), // Use 8 units
+    // "Iteration_unit_num_S" -> RawParam("3'b111"), // Use 8 units
     "ROM_ADDR_BITS" -> RawParam("4"),
-    "GUARD_BITS" -> RawParam("24"),     // 4 guard bits for sufficient precision
+    "GUARD_BITS" -> RawParam("12"),     // With 12 guard bits it works, but need to look for better designs
     "RM_SI"       -> RawParam("3'b000") //round mode
 )) with HasBlackBoxResource {
 

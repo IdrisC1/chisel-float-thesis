@@ -29,7 +29,7 @@ module fp_div #(
   div_sqrt_top_mvp  #(
     .FpFormat (FpFormat),
     .PRECISION_CTRL (PRECISION_CTRL),
-    .Iteration_unit_num_S (Iteration_unit_num_S),
+    // .Iteration_unit_num_S (Iteration_unit_num_S),
     .RM_SI    (RM_SI),
     .ROM_ADDR_BITS (ROM_ADDR_BITS),
     .GUARD_BITS (GUARD_BITS)

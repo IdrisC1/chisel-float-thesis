@@ -1,45 +1,45 @@
-// Copyright 2018 ETH Zurich and University of Bologna.
-// Copyright and related rights are licensed under the Solderpad Hardware
-// License, Version 0.51 (the “License”); you may not use this file except in
-// compliance with the License.  You may obtain a copy of the License at
-// http://solderpad.org/licenses/SHL-0.51. Unless required by applicable law
-// or agreed to in writing, software, hardware and materials distributed under
-// this License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// // Copyright 2018 ETH Zurich and University of Bologna.
+// // Copyright and related rights are licensed under the Solderpad Hardware
+// // License, Version 0.51 (the “License”); you may not use this file except in
+// // compliance with the License.  You may obtain a copy of the License at
+// // http://solderpad.org/licenses/SHL-0.51. Unless required by applicable law
+// // or agreed to in writing, software, hardware and materials distributed under
+// // this License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR
+// // CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// // specific language governing permissions and limitations under the License.
 
-////////////////////////////////////////////////////////////////////////////////
-// Company:        IIS @ ETHZ - Federal Institute of Technology               //
-//                                                                            //
-// Engineers:      Lei Li    lile@iis.ee.ethz.ch                              //
-//                                                                            //
-// Additional contributions by:                                               //
-//                                                                            //
-//                                                                            //
-//                                                                            //
-// Create Date:    09/03/2018                                                 //
-// Design Name:    FPU                                                        //
-// Module Name:    norm_div_sqrt_mvp.sv                                       //
-// Project Name:                                                              //
-// Language:       SystemVerilog                                              //
-//                                                                            //
-// Description:    Floating point Normalizer/Rounding unit                    //
-//                 Since this module is design as a combinatinal logic, it can//
-//                 be added arbinary register stages for different frequency  //
-//                 in the wrapper module.                                     //
-//                                                                            //
-//                                                                            //
-//                                                                            //
-// Revision Date:  12/04/2018                                                 //
-//                 Lei Li                                                     //
-//                 To address some requirements by Stefan                     //
-//                                                                            //
-//                                                                            //
-//                                                                            //
-//                                                                            //
-//                                                                            //
-//                                                                            //
-////////////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////////////
+// // Company:        IIS @ ETHZ - Federal Institute of Technology               //
+// //                                                                            //
+// // Engineers:      Lei Li    lile@iis.ee.ethz.ch                              //
+// //                                                                            //
+// // Additional contributions by:                                               //
+// //                                                                            //
+// //                                                                            //
+// //                                                                            //
+// // Create Date:    09/03/2018                                                 //
+// // Design Name:    FPU                                                        //
+// // Module Name:    norm_div_sqrt_mvp.sv                                       //
+// // Project Name:                                                              //
+// // Language:       SystemVerilog                                              //
+// //                                                                            //
+// // Description:    Floating point Normalizer/Rounding unit                    //
+// //                 Since this module is design as a combinatinal logic, it can//
+// //                 be added arbinary register stages for different frequency  //
+// //                 in the wrapper module.                                     //
+// //                                                                            //
+// //                                                                            //
+// //                                                                            //
+// // Revision Date:  12/04/2018                                                 //
+// //                 Lei Li                                                     //
+// //                 To address some requirements by Stefan                     //
+// //                                                                            //
+// //                                                                            //
+// //                                                                            //
+// //                                                                            //
+// //                                                                            //
+// //                                                                            //
+// ////////////////////////////////////////////////////////////////////////////////
 
 // import defs_div_sqrt_mvp::*;
 
@@ -618,3 +618,264 @@ module norm_div_sqrt_mvp #(
   assign Fflags_SO = {NV_OP_S,Div_Zero_S,Exp_OF_S,Exp_UF_S,In_Exact_S}; //{NV,DZ,OF,UF,NX}
 
 endmodule // norm_div_sqrt_mvp
+
+
+// // norm_div_sqrt_mvp.sv
+// // Fixed: Alignment error in Back-Multiplication (Shift +4 instead of +5)
+// // Fixed: LATCH warnings
+
+// module norm_div_sqrt_mvp #(
+//   parameter fpnew_pkg_snax::fp_format_e FpFormat = fpnew_pkg_snax::FP32,
+//   parameter logic [C_PC-1:0] PRECISION_CTRL = 'h00, 
+//   parameter int unsigned RM_SI = 3'h0, 
+
+//   parameter int unsigned EXP_BITS = fpnew_pkg_snax::exp_bits(FpFormat),
+//   parameter int unsigned MAN_BITS = fpnew_pkg_snax::man_bits(FpFormat),
+//   parameter int unsigned WIDTH    = fpnew_pkg_snax::fp_width(FpFormat)
+//   )
+//   (//Inputs
+//    input logic                                  clk,
+//    input logic [MAN_BITS+4:0]                   Mant_in_DI, 
+//    input logic signed [EXP_BITS+1:0]            Exp_in_DI,
+//    input logic                                  Sign_in_DI,
+   
+//    input logic [MAN_BITS:0]                     Mant_a_DI, 
+//    input logic [MAN_BITS:0]                     Mant_b_DI, 
+
+//    input logic                                  Div_enable_SI, 
+//    input logic                                  Inf_a_SI,
+//    input logic                                  Inf_b_SI,
+//    input logic                                  Zero_a_SI,
+//    input logic                                  Zero_b_SI,
+//    input logic                                  NaN_a_SI,
+//    input logic                                  NaN_b_SI,
+//    input logic                                  SNaN_SI,
+//    input logic                                  Done_SI,
+
+//    //Outputs
+//    output logic                                 Done_SO,  
+//    output logic [EXP_BITS+MAN_BITS:0]           Result_DO,
+//    output logic [4:0]                           Fflags_SO 
+//    );
+
+//   assign Done_SO = Done_SI;
+
+//    logic                                        Sign_res_D;
+//    logic                                        NV_OP_S;
+//    logic                                        Exp_OF_S;
+//    logic                                        Exp_UF_S;
+//    logic                                        Div_Zero_S;
+//    logic                                        In_Exact_S;
+//    localparam logic Full_precision_SI =   (PRECISION_CTRL==6'h00);
+
+//    // Back-Multiplication and Correction Logic
+//    logic [MAN_BITS+4:0]  Mant_corrected_D;
+//    logic                 Back_Mul_Sticky_D;
+   
+//    logic [2*MAN_BITS + 6 : 0] p_prod;      
+//    logic [2*MAN_BITS + 6 : 0] a_scaled;    
+//    logic signed [2*MAN_BITS + 7 : 0] rem;  
+
+//    always_comb begin
+//      // Default assignments
+//      p_prod = '0;
+//      a_scaled = '0;
+//      rem = '0;
+//      Mant_corrected_D = Mant_in_DI;
+//      Back_Mul_Sticky_D = 1'b0;
+
+//      if (Div_enable_SI && !NaN_a_SI && !NaN_b_SI && !Inf_a_SI && !Inf_b_SI && !Zero_a_SI) begin
+//         // 1. Compute P = Q * B
+//         p_prod = Mant_in_DI * Mant_b_DI;
+
+//         // 2. Align A to the product
+//         // Q (MAN+4 frac) * B (MAN frac) = P (2*MAN+4 frac)
+//         // A (MAN frac) -> Needs shift (MAN+4)
+//         a_scaled = {Mant_a_DI, {(MAN_BITS+4){1'b0}}};
+
+//         // 3. Calculate Remainder
+//         rem = $signed(a_scaled) - $signed(p_prod);
+
+//         // 4. Correction
+//         if (rem < 0) begin
+//            Mant_corrected_D = Mant_in_DI - 1;
+//            Back_Mul_Sticky_D = |(rem + $signed({1'b0, Mant_b_DI}));
+//         end else begin
+//            Mant_corrected_D = Mant_in_DI;
+//            Back_Mul_Sticky_D = |rem;
+//         end
+//      end 
+//    end
+
+//    /////////////////////////////////////////////////////////////////////////////
+//    // Normalization
+//    /////////////////////////////////////////////////////////////////////////////
+//    logic [MAN_BITS:0]                          Mant_res_norm_D;
+//    logic [EXP_BITS-1:0]                        Exp_res_norm_D;
+
+//    logic  [EXP_BITS+1:0]                         Num_RS_D;
+//    assign Num_RS_D = ~Exp_in_DI + 1 + 1; 
+
+//    logic  [MAN_BITS:0]                           Mant_RS_D;
+//    logic  [MAN_BITS+4:0]                         Mant_forsticky_D;
+
+//    assign  {Mant_RS_D, Mant_forsticky_D} = {Mant_corrected_D, {(MAN_BITS+1){1'b0}}} >> (Num_RS_D); 
+
+//    logic [EXP_BITS-1:0]                          Exp_subOne_D;
+//    assign Exp_subOne_D = Exp_in_DI - 1;
+
+//    logic [1:0]                                  Mant_lower_D;
+//    logic                                        Mant_sticky_bit_D;
+//    logic [MAN_BITS+4:0]                          Mant_forround_D;
+
+//    always_comb
+//      begin
+//        Mant_res_norm_D = '0; 
+//        Exp_res_norm_D = '0; 
+//        Mant_forround_D = '0;
+//        Sign_res_D = Sign_in_DI;
+//        NV_OP_S = 1'b0;
+//        Div_Zero_S = 1'b0;
+//        Exp_OF_S = 1'b0;
+//        Exp_UF_S = 1'b0;
+
+//        if(NaN_a_SI) begin
+//            Mant_res_norm_D = {1'b0, 1'b1, {(MAN_BITS-1){1'b0}}}; 
+//            Exp_res_norm_D = '1;
+//            Sign_res_D = 1'b0;
+//            NV_OP_S = SNaN_SI;
+//        end
+//        else if(NaN_b_SI) begin
+//           Mant_res_norm_D = {1'b0, 1'b1, {(MAN_BITS-1){1'b0}}};
+//           Exp_res_norm_D = '1;
+//           Sign_res_D = 1'b0;
+//           NV_OP_S = SNaN_SI;
+//        end
+//        else if(Inf_a_SI) begin
+//           if(Div_enable_SI && Inf_b_SI) begin 
+//               Mant_res_norm_D = {1'b0, 1'b1, {(MAN_BITS-1){1'b0}}};
+//               Exp_res_norm_D = '1;
+//               Sign_res_D = 1'b0;
+//               NV_OP_S = 1'b1;
+//           end else begin 
+//               Exp_OF_S = 1'b1; 
+//               Exp_res_norm_D = '1;
+//               Sign_res_D = Sign_in_DI;
+//           end
+//        end
+//        else if(Div_enable_SI && Inf_b_SI) begin 
+//           Exp_res_norm_D = '0; 
+//        end
+//        else if(Zero_a_SI) begin
+//          if(Div_enable_SI && Zero_b_SI) begin 
+//               Mant_res_norm_D = {1'b0, 1'b1, {(MAN_BITS-1){1'b0}}};
+//               Exp_res_norm_D = '1;
+//               Sign_res_D = 1'b0;
+//               NV_OP_S = 1'b1;
+//               Div_Zero_S = 1'b1;
+//          end 
+//        end
+//        else if(Div_enable_SI && Zero_b_SI) begin 
+//          Div_Zero_S = 1'b1;
+//          Exp_res_norm_D = '1;
+//        end
+//        else if(Exp_in_DI[EXP_BITS:0] == '0) begin 
+//          if(Mant_corrected_D != '0) begin
+//              Exp_UF_S = 1'b1;
+//              Mant_res_norm_D = {1'b0, Mant_corrected_D[MAN_BITS+4:5]};
+//              Mant_forround_D = {Mant_corrected_D[4:0], {(MAN_BITS){1'b0}}};
+//          end
+//        end
+//        else if(Exp_in_DI[EXP_BITS+1]) begin 
+//           Exp_UF_S = 1'b1;
+//           Mant_res_norm_D = {Mant_RS_D[MAN_BITS:0]};
+//           Exp_res_norm_D = '0;
+//           Mant_forround_D = {Mant_forsticky_D[MAN_BITS+4:0]};
+//        end
+//        else if( (Exp_in_DI[EXP_BITS] && (FpFormat == fpnew_pkg_snax::FP32)) || 
+//                 (Exp_in_DI[EXP_BITS] && (FpFormat == fpnew_pkg_snax::FP64)) ) begin 
+//           Exp_OF_S = 1'b1;
+//           Exp_res_norm_D = '1;
+//        end
+//        else if( ((Exp_in_DI[EXP_BITS-1:0] == '1) && (FpFormat == fpnew_pkg_snax::FP32)) ||
+//                 ((Exp_in_DI[EXP_BITS-1:0] == '1) && (FpFormat == fpnew_pkg_snax::FP64)) ) begin
+//           if(~Mant_corrected_D[MAN_BITS+4]) begin 
+//               Mant_res_norm_D = Mant_corrected_D[MAN_BITS+3:3];
+//               Exp_res_norm_D = Exp_subOne_D;
+//               Mant_forround_D = {Mant_corrected_D[2:0], {(MAN_BITS+2){1'b0}}};
+//           end else begin
+//               Exp_OF_S = 1'b1; 
+//               Exp_res_norm_D = '1;
+//           end
+//        end
+//        else if(Mant_corrected_D[MAN_BITS+4]) begin
+//            Mant_res_norm_D = Mant_corrected_D[MAN_BITS+4:4];
+//            Exp_res_norm_D = Exp_in_DI[EXP_BITS-1:0];
+//            Mant_forround_D = {Mant_corrected_D[3:0], {(MAN_BITS+1){1'b0}}};
+//        end
+//        else begin
+//            Mant_res_norm_D = Mant_corrected_D[MAN_BITS+3:3];
+//            Exp_res_norm_D = Exp_subOne_D;
+//            Mant_forround_D = {Mant_corrected_D[2:0], {(MAN_BITS+2){1'b0}}};
+//        end
+//      end
+
+//    /////////////////////////////////////////////////////////////////////////////
+//    // Rounding
+//    /////////////////////////////////////////////////////////////////////////////
+
+//    logic [MAN_BITS:0]                      Mant_upper_D;
+//    logic [MAN_BITS+1:0]                    Mant_upperRounded_D;
+//    logic                                   Mant_roundUp_S;
+//    logic                                   Mant_rounded_S;
+
+//    generate
+//     always_comb begin
+//         Mant_upper_D = Mant_res_norm_D[MAN_BITS:0];
+//         Mant_lower_D = Mant_forround_D[MAN_BITS+4:MAN_BITS+3];
+//         Mant_sticky_bit_D = (|Mant_forround_D[MAN_BITS+3:0]) | Back_Mul_Sticky_D;
+//     end
+//    endgenerate
+
+//    assign Mant_rounded_S = (|(Mant_lower_D)) | Mant_sticky_bit_D;
+
+//    always_comb begin
+//         Mant_roundUp_S = 1'b0;
+//         case (RM_SI)
+//           3'h0: 
+//             Mant_roundUp_S = Mant_lower_D[1] && (Mant_upper_D[0] || Mant_sticky_bit_D || Mant_lower_D[0]);
+//           3'h1: 
+//             Mant_roundUp_S = 0;
+//           3'h2: 
+//             Mant_roundUp_S = Mant_rounded_S & ~Sign_in_DI;
+//           3'h3: 
+//             Mant_roundUp_S = Mant_rounded_S & Sign_in_DI;
+//           default:
+//             Mant_roundUp_S = 0;
+//         endcase
+//    end
+
+//    logic Mant_renorm_S;
+//    assign Mant_upperRounded_D = Mant_upper_D + Mant_roundUp_S;
+//    assign Mant_renorm_S       = Mant_upperRounded_D[MAN_BITS+1];
+
+//    /////////////////////////////////////////////////////////////////////////////
+//    // Output Assignments
+//    /////////////////////////////////////////////////////////////////////////////
+//    logic [MAN_BITS-1:0]                   Mant_res_round_D;
+//    logic [EXP_BITS-1:0]                   Exp_res_round_D;
+//    logic [MAN_BITS-1:0]                   Mant_before_format_ctl_D;
+//    logic [EXP_BITS-1:0]                   Exp_before_format_ctl_D;
+
+//    assign Mant_res_round_D = (Mant_renorm_S) ? Mant_upperRounded_D[MAN_BITS:1] : Mant_upperRounded_D[MAN_BITS-1:0];
+//    assign Exp_res_round_D  = Exp_res_norm_D + Mant_renorm_S;
+
+//    assign Mant_before_format_ctl_D = Full_precision_SI ? Mant_res_round_D : Mant_res_norm_D;
+//    assign Exp_before_format_ctl_D  = Full_precision_SI ? Exp_res_round_D  : Exp_res_norm_D;
+
+//    assign Result_DO = {Sign_res_D, Exp_before_format_ctl_D, Mant_before_format_ctl_D};
+   
+//    assign In_Exact_S = (~Full_precision_SI) | Mant_rounded_S;
+//    assign Fflags_SO = {NV_OP_S, Div_Zero_S, Exp_OF_S, Exp_UF_S, In_Exact_S};
+
+// endmodule

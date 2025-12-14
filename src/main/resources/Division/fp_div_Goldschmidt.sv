@@ -343,7 +343,7 @@ module fp_div_Goldschmidt #(
         localparam int OUTPUT_WIDTH = MAN_BITS + 5; // Hidden + Mant + GRS
         localparam int AVAILABLE_BITS = WIDTH - 1;  // Bits from Hidden down to 0
 
-        if (AVAILABLE_BITS >= OUTPUT_WIDTH) begin : gen_slice
+        if (AVAILABLE_BITS > OUTPUT_WIDTH) begin : gen_slice
             // We have excess bits (e.g., GUARD_BITS is large)
             // Calculate indices
             localparam int MSB_INDEX = WIDTH - 2;
@@ -438,9 +438,350 @@ module goldschmidt_stage_opt #(
     end
 endmodule
 
+// =============================================================================
+// Fused Multiply-Add/Subtract Stage (FMA)
+// =============================================================================
+// Performs:
+//   N_out = Round( N_in * F_in )
+//   D_out = Round( D_in * F_in )
+//   F_out = Round( 2.0 - (D_in * F_in) )  <-- Fused Operation
+//
+// Benefits:
+//   - Preserves precision of (D*F) before subtracting from 2.0
+//   - Eliminates intermediate rounding error in the F-loop
+// =============================================================================
+
+// module goldschmidt_stage_opt #(
+//     parameter int WIDTH = 64,
+//     parameter int FRAC_BITS = 62
+// )(
+//     input  logic             clk,
+//     input  logic             rst_ni,
+//     input  logic             kill_i,
+//     input  logic [WIDTH-1:0] n_in,
+//     input  logic [WIDTH-1:0] d_in,
+//     input  logic [WIDTH-1:0] f_in,
+//     output logic [WIDTH-1:0] n_out,
+//     output logic [WIDTH-1:0] d_out,
+//     output logic [WIDTH-1:0] f_out
+// );
+
+//     // 1. Full Precision Multiplications (Q2.F * Q2.F = Q4.2F)
+//     // Result width is 2*WIDTH.
+//     logic [2*WIDTH-1:0] n_mult_full;
+//     logic [2*WIDTH-1:0] d_mult_full;
+    
+//     // 2. Constants for Fused Operation
+//     // "2.0" in Q4.2F format. 
+//     // Format has 4 integer bits. 2.0 is binary 0010.00...
+//     // The fraction part has 2*FRAC_BITS.
+//     // So we shift 1 by (2*FRAC_BITS + 1).
+//     localparam logic [2*WIDTH-1:0] TWO_FULL = (1'b1 << (2*FRAC_BITS + 1));
+
+//     // 3. Wires for Combinational Logic
+//     logic [2*WIDTH-1:0] f_diff_full;
+//     logic [WIDTH-1:0]   n_comb, d_comb, f_comb;
+
+//     always_comb begin
+//         // --- Step A: Calculate Full Products ---
+//         n_mult_full = n_in * f_in;
+//         d_mult_full = d_in * f_in;
+
+//         // --- Step B: Fused Subtraction for F ---
+//         // Calculate 2.0 - (D*F) using the FULL width product.
+//         // This allows bits below the LSB to borrow from the MSBs.
+//         f_diff_full = TWO_FULL - d_mult_full;
+
+//         // --- Step C: Rounding and Slicing ---
+//         // We want to extract Q2.F (WIDTH bits) from Q4.2F (2*WIDTH bits).
+//         // The interesting bits start at index [2*FRAC_BITS + 1].
+//         //
+//         // Slicing Range: [2*FRAC_BITS + 1 : FRAC_BITS]
+//         // Rounding Bit : [FRAC_BITS - 1]
+        
+//         // 1. N Path (Multiply-Round)
+//         // Add the rounding bit (MSB of the lower half) to the upper half.
+//         n_comb = n_mult_full[2*FRAC_BITS + 1 : FRAC_BITS] + n_mult_full[FRAC_BITS - 1];
+
+//         // 2. D Path (Multiply-Round)
+//         // Used for the next D iteration
+//         d_comb = d_mult_full[2*FRAC_BITS + 1 : FRAC_BITS] + d_mult_full[FRAC_BITS - 1];
+
+//         // 3. F Path (Fused Subtract-Round)
+//         // Round the result of the subtraction
+//         f_comb = f_diff_full[2*FRAC_BITS + 1 : FRAC_BITS] + f_diff_full[FRAC_BITS - 1];
+//     end
+
+//     // --- Step D: Pipeline Register ---
+//     always_ff @(posedge clk or negedge rst_ni) begin
+//         if (!rst_ni) begin
+//             n_out <= '0;
+//             d_out <= '0;
+//             f_out <= '0;
+//         end else if (kill_i) begin
+//             n_out <= '0;
+//             d_out <= '0;
+//             f_out <= '0;
+//         end else begin
+//             n_out <= n_comb;
+//             d_out <= d_comb;
+//             f_out <= f_comb;
+//         end
+//     end
+
+// endmodule
 
 
 
 
+// // fp_div_Goldschmidt.sv
+// // Fixed: Disabled Optimization (KNOWN_ZERO_BITS = 0) to ensure correctness
+// // Fixed: SELRANGE and REALCVT warnings
 
+// module fp_div_Goldschmidt #(
+//     parameter fpnew_pkg_snax::fp_format_e FpFormat = fpnew_pkg_snax::FP32,
+//     parameter int ROM_ADDR_BITS = 8,
+//     parameter int GUARD_BITS    = 11,
+    
+//     localparam int unsigned EXP_BITS = fpnew_pkg_snax::exp_bits(FpFormat),
+//     localparam int unsigned MAN_BITS = fpnew_pkg_snax::man_bits(FpFormat)
+// )(
+//     input  logic                   clk,
+//     input  logic                   rst_ni,
+//     input  logic                   kill_i,
+//     input  logic                   start_i,
 
+//     input  logic [MAN_BITS:0]      mant_a_i,
+//     input  logic [MAN_BITS:0]      mant_b_i,
+//     input  logic [EXP_BITS:0]      exp_a_i,
+//     input  logic [EXP_BITS:0]      exp_b_i,
+
+//     input  logic                   sign_z_i,
+//     input  logic                   inf_a_i, inf_b_i,
+//     input  logic                   zero_a_i, zero_b_i,
+//     input  logic                   nan_a_i, nan_b_i, snan_i,
+
+//     output logic                   valid_o,
+//     output logic [MAN_BITS+4:0]    mant_res_o,
+//     output logic [EXP_BITS+1:0]    exp_res_o,
+
+//     output logic                   sign_z_o,
+//     output logic                   inf_a_o, inf_b_o,
+//     output logic                   zero_a_o, zero_b_o,
+//     output logic                   nan_a_o, nan_b_o, snan_o
+// );
+
+//     // Fixed Point format: Q2.F
+//     localparam int FRAC_BITS = MAN_BITS + GUARD_BITS; 
+//     localparam int WIDTH     = 2 + FRAC_BITS;
+
+//     function int calc_needed_stages(int start_bits);
+//         int bits;
+//         int stages;
+//         bits = start_bits;
+//         stages = 0;
+//         while (bits < FRAC_BITS) begin
+//             bits = bits * 2;
+//             stages = stages + 1;
+//         end
+//         return stages;
+//     endfunction
+
+//     localparam int NUM_STAGES = calc_needed_stages(ROM_ADDR_BITS);
+//     localparam int ROM_DEPTH  = 1 << ROM_ADDR_BITS;
+
+//     // ROM Logic
+//     localparam int CALC_WIDTH   = (WIDTH > 64) ? 64 : WIDTH;
+//     localparam int SHIFT_AMOUNT = WIDTH - CALC_WIDTH;
+
+//     logic [WIDTH-1:0] rcp_rom [0 : ROM_DEPTH-1];
+
+//     initial begin
+//         real x, inv, scale, scaled_inv;
+//         longint unsigned val_int;
+//         scale = $pow(2.0, CALC_WIDTH - 2);
+//         for (int i = 0; i < ROM_DEPTH; i++) begin
+//             x = 1.0 + ($itor(i) / $itor(ROM_DEPTH));
+//             inv = 1.0 / x;
+//             scaled_inv = inv * scale;
+//             val_int = $rtoi(scaled_inv + 0.5);
+//             rcp_rom[i] = {val_int[CALC_WIDTH-1:0], {SHIFT_AMOUNT{1'b0}}};
+//         end
+//     end
+
+//     logic [WIDTH-1:0] f0_val;
+//     assign f0_val = rcp_rom[mant_b_i[MAN_BITS-1 -: ROM_ADDR_BITS]];
+
+//     // Pipeline Logic
+//     logic [WIDTH-1:0] n_pipe [0 : NUM_STAGES];
+//     logic [WIDTH-1:0] d_pipe [0 : NUM_STAGES];
+//     logic [WIDTH-1:0] f_pipe [0 : NUM_STAGES];
+    
+//     typedef struct packed {
+//         logic       valid;
+//         logic [EXP_BITS+1:0] exp_diff;
+//         logic       sign_z;
+//         logic       inf_a, inf_b;
+//         logic       zero_a, zero_b;
+//         logic       nan_a, nan_b, snan;
+//     } metadata_t;
+
+//     metadata_t meta_pipe [0 : NUM_STAGES];
+
+//     localparam int C_BIAS_AONE = fpnew_pkg_snax::bias(FpFormat); 
+//     logic [EXP_BITS+1:0] exp_calc_d;
+//     assign exp_calc_d = $signed(exp_a_i) - $signed(exp_b_i) + $signed(C_BIAS_AONE);
+
+//     always_ff @(posedge clk or negedge rst_ni) begin
+//         if (!rst_ni) begin
+//             n_pipe[0]    <= '0;
+//             d_pipe[0]    <= '0;
+//             f_pipe[0]    <= '0;
+//             meta_pipe[0] <= '0;
+//         end else if (kill_i) begin
+//             meta_pipe[0].valid <= 1'b0;
+//         end else begin
+//             n_pipe[0] <= {2'b01, mant_a_i[MAN_BITS-1:0], {GUARD_BITS{1'b0}}};
+//             d_pipe[0] <= {2'b01, mant_b_i[MAN_BITS-1:0], {GUARD_BITS{1'b0}}};
+//             f_pipe[0] <= f0_val;
+
+//             meta_pipe[0].valid    <= start_i;
+//             meta_pipe[0].exp_diff <= exp_calc_d;
+//             meta_pipe[0].sign_z   <= sign_z_i;
+//             meta_pipe[0].inf_a    <= inf_a_i;
+//             meta_pipe[0].inf_b    <= inf_b_i;
+//             meta_pipe[0].zero_a   <= zero_a_i;
+//             meta_pipe[0].zero_b   <= zero_b_i;
+//             meta_pipe[0].nan_a    <= nan_a_i;
+//             meta_pipe[0].nan_b    <= nan_b_i;
+//             meta_pipe[0].snan     <= snan_i;
+//         end
+//     end
+
+//     genvar i;
+//     generate
+//         for (i = 0; i < NUM_STAGES; i++) begin : gen_stages
+//             // [FIXED] Disable optimization to ensure correctness
+//             localparam int REDUCTION = 0;
+
+//             goldschmidt_stage_opt #(
+//                 .WIDTH(WIDTH), 
+//                 .FRAC_BITS(FRAC_BITS),
+//                 .KNOWN_ZERO_BITS(REDUCTION)
+//             ) stage_inst (
+//                 .clk     (clk),
+//                 .rst_ni  (rst_ni),
+//                 .kill_i  (kill_i),
+//                 .n_in    (n_pipe[i]),
+//                 .d_in    (d_pipe[i]),
+//                 .f_in    (f_pipe[i]),
+//                 .n_out   (n_pipe[i+1]),
+//                 .d_out   (d_pipe[i+1]),
+//                 .f_out   (f_pipe[i+1])
+//             );
+
+//             always_ff @(posedge clk or negedge rst_ni) begin
+//                 if(!rst_ni) meta_pipe[i+1] <= '0;
+//                 else if(kill_i) meta_pipe[i+1].valid <= 1'b0;
+//                 else meta_pipe[i+1] <= meta_pipe[i];
+//             end
+//         end
+//     endgenerate
+
+//     logic [WIDTH-1:0] final_n;
+//     assign final_n = n_pipe[NUM_STAGES];
+
+//     generate
+//         localparam int OUTPUT_WIDTH = MAN_BITS + 5; 
+//         localparam int AVAILABLE_BITS = WIDTH - 1;
+
+//         if (AVAILABLE_BITS > OUTPUT_WIDTH) begin : gen_slice
+//             localparam int MSB_INDEX = WIDTH - 2;
+//             localparam int LSB_INDEX = WIDTH - 2 - OUTPUT_WIDTH + 1;
+//             logic sticky_bit;
+//             assign sticky_bit = |final_n[LSB_INDEX - 1 : 0];
+
+//             assign mant_res_o = { 
+//                 final_n[MSB_INDEX : LSB_INDEX + 1], 
+//                 final_n[LSB_INDEX] | sticky_bit 
+//             };
+//         end else begin : gen_pad
+//             assign mant_res_o = {final_n[WIDTH-2 : 0], {(OUTPUT_WIDTH - AVAILABLE_BITS){1'b0}} };
+//         end
+//     endgenerate
+
+//     assign exp_res_o = meta_pipe[NUM_STAGES].exp_diff;
+//     assign valid_o   = meta_pipe[NUM_STAGES].valid;
+//     assign sign_z_o  = meta_pipe[NUM_STAGES].sign_z;
+//     assign inf_a_o   = meta_pipe[NUM_STAGES].inf_a;
+//     assign inf_b_o   = meta_pipe[NUM_STAGES].inf_b;
+//     assign zero_a_o  = meta_pipe[NUM_STAGES].zero_a;
+//     assign zero_b_o  = meta_pipe[NUM_STAGES].zero_b;
+//     assign nan_a_o   = meta_pipe[NUM_STAGES].nan_a;
+//     assign nan_b_o   = meta_pipe[NUM_STAGES].nan_b;
+//     assign snan_o    = meta_pipe[NUM_STAGES].snan;
+// endmodule
+
+// // Helper Module
+// module goldschmidt_stage_opt #(
+//     parameter int WIDTH = 57,
+//     parameter int FRAC_BITS = 55,
+//     parameter int KNOWN_ZERO_BITS = 0 
+// )(
+//     input  logic             clk,
+//     input  logic             rst_ni,
+//     input  logic             kill_i,
+//     input  logic [WIDTH-1:0] n_in,
+//     input  logic [WIDTH-1:0] d_in,
+//     input  logic [WIDTH-1:0] f_in,
+    
+//     output logic [WIDTH-1:0] n_out,
+//     output logic [WIDTH-1:0] d_out,
+//     output logic [WIDTH-1:0] f_out
+// );
+//     localparam logic [WIDTH-1:0] ONE_FIXED = (1'b1 << FRAC_BITS);
+//     localparam logic [WIDTH-1:0] TWO_FIXED = (1'b1 << (FRAC_BITS + 1));
+
+//     logic signed [WIDTH-1:0] diff_f;
+//     assign diff_f = f_in - ONE_FIXED;
+
+//     localparam int REDUCED_WIDTH = WIDTH - KNOWN_ZERO_BITS;
+//     logic signed [REDUCED_WIDTH-1:0] diff_f_reduced;
+//     assign diff_f_reduced = diff_f[REDUCED_WIDTH-1:0];
+
+//     // [FIXED] Full width signals to prevent Verilator warnings
+//     logic signed [2*WIDTH - 1 : 0] n_prod_raw;
+//     logic signed [2*WIDTH - 1 : 0] d_prod_raw;
+
+//     always_comb begin
+//         n_prod_raw = $signed(n_in) * $signed(diff_f_reduced);
+//         d_prod_raw = $signed(d_in) * $signed(diff_f_reduced);
+//     end
+
+//     logic [WIDTH-1:0] n_correction, d_correction;
+    
+//     assign n_correction = n_prod_raw[FRAC_BITS + WIDTH - 1 : FRAC_BITS]; 
+//     assign d_correction = d_prod_raw[FRAC_BITS + WIDTH - 1 : FRAC_BITS];
+
+//     logic [WIDTH-1:0] n_next, d_next, f_next;
+
+//     assign n_next = n_in + n_correction;
+//     assign d_next = d_in + d_correction;
+//     assign f_next = TWO_FIXED - d_next; 
+
+//     always_ff @(posedge clk or negedge rst_ni) begin
+//         if (!rst_ni) begin
+//             n_out <= '0;
+//             d_out <= '0;
+//             f_out <= '0;
+//         end else if (kill_i) begin
+//             n_out <= '0;
+//             d_out <= '0;
+//             f_out <= '0;
+//         end else begin
+//             n_out <= n_next;
+//             d_out <= d_next;
+//             f_out <= f_next;
+//         end
+//     end
+// endmodule

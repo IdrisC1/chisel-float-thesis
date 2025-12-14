@@ -1,36 +1,36 @@
-// Copyright 2018 ETH Zurich and University of Bologna.
-// Copyright and related rights are licensed under the Solderpad Hardware
-// License, Version 0.51 (the “License”); you may not use this file except in
-// compliance with the License.  You may obtain a copy of the License at
-// http://solderpad.org/licenses/SHL-0.51. Unless required by applicable law
-// or agreed to in writing, software, hardware and materials distributed under
-// this License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the
-// specific language governing permissions and limitations under the License.
+// // Copyright 2018 ETH Zurich and University of Bologna.
+// // Copyright and related rights are licensed under the Solderpad Hardware
+// // License, Version 0.51 (the “License”); you may not use this file except in
+// // compliance with the License.  You may obtain a copy of the License at
+// // http://solderpad.org/licenses/SHL-0.51. Unless required by applicable law
+// // or agreed to in writing, software, hardware and materials distributed under
+// // this License is distributed on an “AS IS” BASIS, WITHOUT WARRANTIES OR
+// // CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// // specific language governing permissions and limitations under the License.
 
-////////////////////////////////////////////////////////////////////////////////
-// Company:        IIS @ ETHZ - Federal Institute of Technology               //
-//                                                                            //
-// Engineers:      Lei Li -- lile@iis.ee.ethz.ch                              //
-//                                                                            //
-// Additional contributions by:                                               //
-//                                                                            //
-//                                                                            //
-//                                                                            //
-// Create Date:    03/03/2018                                                 //
-// Design Name:    div_sqrt_top_mvp                                           //
-// Module Name:    div_sqrt_top_mvp.sv                                        //
-// Project Name:   The shared divisor and square root                         //
-// Language:       SystemVerilog                                              //
-//                                                                            //
-// Description:    The top of div and sqrt                                    //
-//                                                                            //
-//                                                                            //
-// Revision Date:  12/04/2018                                                 //
-//                 Lei Li                                                     //
-//                 To address some requirements by Stefan and add low power   //
-//                 control for special cases                                  //
-////////////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////////////
+// // Company:        IIS @ ETHZ - Federal Institute of Technology               //
+// //                                                                            //
+// // Engineers:      Lei Li -- lile@iis.ee.ethz.ch                              //
+// //                                                                            //
+// // Additional contributions by:                                               //
+// //                                                                            //
+// //                                                                            //
+// //                                                                            //
+// // Create Date:    03/03/2018                                                 //
+// // Design Name:    div_sqrt_top_mvp                                           //
+// // Module Name:    div_sqrt_top_mvp.sv                                        //
+// // Project Name:   The shared divisor and square root                         //
+// // Language:       SystemVerilog                                              //
+// //                                                                            //
+// // Description:    The top of div and sqrt                                    //
+// //                                                                            //
+// //                                                                            //
+// // Revision Date:  12/04/2018                                                 //
+// //                 Lei Li                                                     //
+// //                 To address some requirements by Stefan and add low power   //
+// //                 control for special cases                                  //
+// ////////////////////////////////////////////////////////////////////////////////
 
 import defs_div_sqrt_mvp::*;
 
@@ -307,3 +307,172 @@ norm_div_sqrt_mvp   #(
    );
 
 endmodule
+
+// // div_sqrt_top_mvp.sv
+// // Top-level connecting Pre-process -> Goldschmidt Wrapper -> Normalizer
+// // Fixed Pin Missing Errors
+
+// module div_sqrt_top_mvp
+//   #(
+//     parameter fpnew_pkg_snax::fp_format_e FpFormat = fpnew_pkg_snax::FP32,
+//     parameter logic [C_PC-1:0] PRECISION_CTRL = 'h00, 
+//     parameter logic [C_RM-1:0] RM_SI = 3'h0,
+//     parameter int unsigned ROM_ADDR_BITS = 8, 
+//     parameter int unsigned GUARD_BITS = 11, 
+
+//     parameter int unsigned EXP_BITS = fpnew_pkg_snax::exp_bits(FpFormat),
+//     parameter int unsigned MAN_BITS = fpnew_pkg_snax::man_bits(FpFormat),
+//     parameter int unsigned WIDTH = fpnew_pkg_snax::fp_width(FpFormat)
+//   )
+//   (//Input
+//    input logic                            clk,
+//    input logic                            Rst_RBI,
+//    input logic                            Div_start_SI,
+//    input logic [WIDTH-1:0]                Operand_a_DI,
+//    input logic [WIDTH-1:0]                Operand_b_DI,
+//    input logic                            Kill_SI,
+
+//    //Output Result
+//    output logic [WIDTH-1:0]               Result_DO,
+//    output logic [4:0]                     Fflags_SO,
+//    output logic                           Ready_SO,
+//    output logic                           Done_SO
+//  );
+
+//    // Internal signals
+//    logic Done_Goldschmidt;
+   
+//    // Pre-process Outputs
+//    logic [EXP_BITS:0]                   Exp_a_D;
+//    logic [EXP_BITS:0]                   Exp_b_D;
+//    logic [MAN_BITS:0]                   Mant_a_D;
+//    logic [MAN_BITS:0]                   Mant_b_D;
+   
+//    logic                                Sign_z_D;
+//    logic                                Start_S;
+   
+//    logic                                Div_enable_S;
+//    logic                                Inf_a_S, Inf_b_S;
+//    logic                                Zero_a_S, Zero_b_S;
+//    logic                                NaN_a_S, NaN_b_S, SNaN_S;
+//    logic                                Special_case_SB, Special_case_dly_SB;
+
+//    // Pipeline "Tunnel" Wires (From Wrapper to Norm)
+//    logic                                Sign_z_pipe_S;
+//    logic                                Inf_a_pipe_S, Inf_b_pipe_S;
+//    logic                                Zero_a_pipe_S, Zero_b_pipe_S;
+//    logic                                NaN_a_pipe_S, NaN_b_pipe_S, SNaN_pipe_S;
+   
+//    // [NEW] Delayed Operand Wires for Back-Multiplication
+//    logic [MAN_BITS:0]                   Mant_a_pipe_S;
+//    logic [MAN_BITS:0]                   Mant_b_pipe_S;
+
+//    // Goldschmidt Results
+//    logic [EXP_BITS+1:0]                 Exp_z_D;
+//    logic [MAN_BITS+4:0]                 Mant_z_D;
+
+//    // ----------------------------------------------------------------------
+//    // 1. Pre-process Unit
+//    // ----------------------------------------------------------------------
+//    preprocess_mvp   #(
+//       .FpFormat (FpFormat),
+//       .RM_SI    (RM_SI)
+//    ) preprocess_U0 (
+//       .clk                (clk),
+//       .Rst_RBI            (Rst_RBI),
+//       .Div_start_SI       (Div_start_SI),
+//       .Ready_SI           (Ready_SO),
+//       .Operand_a_DI       (Operand_a_DI),
+//       .Operand_b_DI       (Operand_b_DI),
+//       .Start_SO           (Start_S),
+//       .Exp_a_DO_norm      (Exp_a_D),
+//       .Exp_b_DO_norm      (Exp_b_D),
+//       .Mant_a_DO_norm     (Mant_a_D),
+//       .Mant_b_DO_norm     (Mant_b_D),
+//       .Sign_z_DO          (Sign_z_D),
+//       .Inf_a_SO           (Inf_a_S),
+//       .Inf_b_SO           (Inf_b_S),
+//       .Zero_a_SO          (Zero_a_S),
+//       .Zero_b_SO          (Zero_b_S),
+//       .NaN_a_SO           (NaN_a_S),
+//       .NaN_b_SO           (NaN_b_S),
+//       .SNaN_SO            (SNaN_S),
+//       .Special_case_SBO   (Special_case_SB),
+//       .Special_case_dly_SBO(Special_case_dly_SB)
+//    );
+
+//    // ----------------------------------------------------------------------
+//    // 2. Goldschmidt Wrapper (Pipeline)
+//    // ----------------------------------------------------------------------
+//    nrbd_nrsc_mvp    #(
+//       .FpFormat     (FpFormat),
+//       .GUARD_BITS   (GUARD_BITS),
+//       .ROM_ADDR_BITS(ROM_ADDR_BITS)
+//    ) nrbd_nrsc_U0 (
+//       .clk                (clk),
+//       .Rst_RBI            (Rst_RBI),
+//       .Div_start_SI       (Div_start_SI),
+//       .Start_SI           (Start_S),
+//       .Kill_SI            (Kill_SI),
+
+//       // Metadata In
+//       .Sign_z_SI          (Sign_z_D),
+//       .Inf_a_SI           (Inf_a_S), .Inf_b_SI (Inf_b_S),
+//       .Zero_a_SI          (Zero_a_S), .Zero_b_SI (Zero_b_S),
+//       .NaN_a_SI           (NaN_a_S), .NaN_b_SI (NaN_b_S), .SNaN_SI (SNaN_S),
+
+//       // Data In
+//       .Exp_a_DI           (Exp_a_D), .Exp_b_DI (Exp_b_D),
+//       .Mant_a_DI          (Mant_a_D), .Mant_b_DI (Mant_b_D),
+
+//       // Data Out
+//       .Div_enable_SO      (Div_enable_S),
+//       .Ready_SO           (Ready_SO),
+//       .Done_SO            (Done_Goldschmidt),
+//       .Exp_z_DO           (Exp_z_D),
+//       .Mant_z_DO          (Mant_z_D),
+
+//       // [FIXED] Correct Port Names matching nrbd_nrsc_mvp.sv
+//       .Mant_a_pipe_DO     (Mant_a_pipe_S),
+//       .Mant_b_pipe_DO     (Mant_b_pipe_S),
+
+//       // Metadata Out
+//       .Sign_z_DO          (Sign_z_pipe_S),
+//       .Inf_a_SO           (Inf_a_pipe_S), .Inf_b_SO (Inf_b_pipe_S),
+//       .Zero_a_SO          (Zero_a_pipe_S), .Zero_b_SO (Zero_b_pipe_S),
+//       .NaN_a_SO           (NaN_a_pipe_S), .NaN_b_SO (NaN_b_pipe_S), .SNaN_SO (SNaN_pipe_S)
+//     );
+
+//    // ----------------------------------------------------------------------
+//    // 3. Normalization & Correction Unit
+//    // ----------------------------------------------------------------------
+//    norm_div_sqrt_mvp   #(
+//       .FpFormat (FpFormat),
+//       .PRECISION_CTRL (PRECISION_CTRL),
+//       .RM_SI    (RM_SI)
+//    ) fpu_norm_U0 (
+//       .clk                (clk),
+      
+//       // Inputs from Goldschmidt
+//       .Mant_in_DI         (Mant_z_D),
+//       .Exp_in_DI          (Exp_z_D),
+      
+//       // [FIXED] Correct Port Names matching norm_div_sqrt_mvp.sv
+//       .Mant_a_DI          (Mant_a_pipe_S),
+//       .Mant_b_DI          (Mant_b_pipe_S),
+
+//       // Metadata from Pipeline
+//       .Sign_in_DI         (Sign_z_pipe_S),
+//       .Div_enable_SI      (Div_enable_S),
+//       .Inf_a_SI           (Inf_a_pipe_S), .Inf_b_SI (Inf_b_pipe_S),
+//       .Zero_a_SI          (Zero_a_pipe_S), .Zero_b_SI (Zero_b_pipe_S),
+//       .NaN_a_SI           (NaN_a_pipe_S), .NaN_b_SI (NaN_b_pipe_S), .SNaN_SI (SNaN_pipe_S),
+//       .Done_SI            (Done_Goldschmidt),
+
+//       // Outputs
+//       .Done_SO            (Done_SO),
+//       .Result_DO          (Result_DO),
+//       .Fflags_SO          (Fflags_SO)
+//    );
+
+// endmodule
